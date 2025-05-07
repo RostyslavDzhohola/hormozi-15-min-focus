@@ -18,11 +18,11 @@ TaskManager.defineTask(BACKGROUND_TIMER_TASK, async () => {
   try {
     log('Background task executed');
     // Your background task logic here
-    return BackgroundFetch.Result.NewData;
+    return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch (error) {
     log('Background task error:', error);
     console.warn('Background task error:', error);
-    return BackgroundFetch.Result.Failed;
+    return BackgroundFetch.BackgroundFetchResult.Failed;
   }
 });
 
@@ -59,11 +59,13 @@ export async function stopTimer() {
 async function registerBackgroundTimer() {
   try {
     const status = await BackgroundFetch.getStatusAsync();
-    
+
     // Only proceed if background fetch is available
-    if (status === BackgroundFetch.BackgroundFetchResult.Available) {
-      const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_TIMER_TASK);
-      
+    if (status === BackgroundFetch.BackgroundFetchStatus.Available) {
+      const isRegistered = await TaskManager.isTaskRegisteredAsync(
+        BACKGROUND_TIMER_TASK
+      );
+
       if (!isRegistered) {
         await BackgroundFetch.registerTaskAsync(BACKGROUND_TIMER_TASK, {
           minimumInterval: 60 * 15, // 15 minutes
@@ -79,8 +81,10 @@ async function registerBackgroundTimer() {
 
 async function unregisterBackgroundTimer() {
   try {
-    const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_TIMER_TASK);
-    
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(
+      BACKGROUND_TIMER_TASK
+    );
+
     if (isRegistered) {
       await BackgroundFetch.unregisterTaskAsync(BACKGROUND_TIMER_TASK);
     }
