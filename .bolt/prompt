@@ -1,0 +1,1 @@
+React Hooks Rule: Always call hooks (useState, useEffect, etc.) unconditionally at the top level of functional components, before any conditional logic (if, ternaries, loops) or early return statements.
