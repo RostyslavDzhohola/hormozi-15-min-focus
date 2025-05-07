@@ -1,236 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Play, CircleStop as StopCircle } from 'lucide-react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { useTimer } from '@/hooks/useTimer';
 import { SessionCompletionModal } from '@/components/SessionCompletionModal';
 import { StopSessionModal } from '@/components/StopSessionModal';
 import { scheduleNotificationAsync } from '@/utils/notifications';
 import { TimerDisplay } from '@/components/TimerDisplay';
 import { useNotifications } from '@/hooks/useNotifications';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient, LinearGradientPoint } from 'expo-linear-gradient';
 import { useTheme } from '@/components/ThemeProvider';
-import { BugPlay, Bell } from 'lucide-react-native';
-
-export default function TimerScreen() {
-  const [isActive, setIsActive] = useState(false);
-  const [showCompletionModal, setShowCompletionModal] = useState(false);
-  const [showStopConfirmation, setShowStopConfirmation] = useState(false);
-  const [showTestModeButton, setShowTestModeButton] = useState(false);
-  const progress = useSharedValue(0);
-  const { colors } = useTheme();
-  
-  const { 
-    timeUntilNext15Min, 
-    currentTime, 
-    startSession, 
-    stopSession, 
-    isRunning,
-    remainingSeconds,
-    timerStatus,
-    setTimerStatus,
-    shouldShowModal,
-    testMode
-  } = useTimer();
-  
-  const { setupNotifications, permissionDeniedMessage } = useNotifications(() => {
-    setShowCompletionModal(true);
-  });
-
-  // Set up notifications when the component mounts
-  useEffect(() => {
-    setupNotifications();
-    // Enable test mode button with a long press
-    const timer = setTimeout(() => {
-      setShowTestModeButton(true);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Monitor timer status and trigger modal
-  useEffect(() => {
-    if (isRunning) {
-      const checkTimer = () => {
-        const isCompleted = testMode ? remainingSeconds <= 0 : timeUntilNext15Min <= 0;
-        if (isCompleted) {
-          setShowCompletionModal(true);
-          scheduleNotificationAsync();
-        }
-      };
-      const interval = setInterval(checkTimer, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [isRunning, remainingSeconds, timeUntilNext15Min, testMode]);
-
-  // Show completion modal when shouldShowModal changes
-  useEffect(() => {
-    if (shouldShowModal && timerStatus === 'completed') {
-      setShowCompletionModal(true);
-    }
-  }, [shouldShowModal, timerStatus]);
-
-  // Animate the progress bar
-  useEffect(() => {
-    if (isRunning) {
-      progress.value = withTiming(1 - remainingSeconds / 900, { 
-        duration: 1000,
-        easing: Easing.linear
-      });
-    }
-  }, [remainingSeconds, isRunning]);
-
-  const handleStartSession = () => {
-    setIsActive(true);
-    startSession(false);
-  };
-
-  const handleTestSession = () => {
-    setIsActive(true);
-    startSession(true); // Pass true to enable test mode
-  };
-
-  const confirmStopSession = () => {
-    setShowStopConfirmation(true);
-  };
-
-  const handleStopConfirmed = () => {
-    setIsActive(false);
-    stopSession();
-    setShowStopConfirmation(false);
-  };
-
-  const handleCompletionSubmit = () => {
-    setShowCompletionModal(false);
-    setIsActive(false);
-    setTimerStatus('idle');
-  };
-
-  const animatedCircleStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ rotate: `${progress.value * 360}deg` }],
-    };
-  });
-
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar style="dark" />
-      
-      <LinearGradient
-        colors={colors.gradient.primary}
-        style={StyleSheet.absoluteFillObject}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-      
-      <View style={styles.headerContainer}>
-        <Text style={[styles.title, { color: colors.text.primary }]}>Time Tracker</Text>
-        {showTestModeButton && !isActive && (
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={[styles.testButton, { backgroundColor: colors.surface }]}
-              onPress={handleTestSession}
-            >
-              <BugPlay size={16} color={colors.text.secondary} />
-              <Text style={[styles.testButtonText, { color: colors.text.secondary }]}>
-                Test Mode (5s)
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        <Text style={[styles.subtitle, { color: colors.text.secondary }]}>
-          Track your productivity in 15-minute intervals
-        </Text>
-      </View>
-      
-      {permissionDeniedMessage && (
-        <View style={[styles.permissionDeniedContainer, { backgroundColor: colors.error.light }]}>
-          <Bell size={20} color={colors.error.main} />
-          <Text style={[styles.permissionDeniedText, { color: colors.error.main }]}>
-            {permissionDeniedMessage}
-          </Text>
-        </View>
-      )}
-      
-      <View style={styles.timerContainer}>
-        <View style={styles.timerShadow}>
-          <View style={[styles.timerBorder, { backgroundColor: colors.surface }]}>
-            <Animated.View style={[styles.progressCircle, animatedCircleStyle]} />
-            <View style={styles.timerContent}>
-              <TimerDisplay 
-                minutes={Math.floor(timeUntilNext15Min / 60)}
-                seconds={timeUntilNext15Min % 60}
-                isActive={isActive}
-                testMode={timerStatus === 'running' && remainingSeconds <= 5}
-              />
-              <Text style={[styles.currentTimeText, { color: colors.text.secondary }]}>
-                {currentTime}
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-      
-      <View style={styles.controlsContainer}>
-        {!isActive ? (
-          <TouchableOpacity 
-            style={[styles.startButton, { backgroundColor: colors.primary.main }]} 
-            onPress={handleStartSession}
-            activeOpacity={0.8}
-          >
-            <Play size={24} color={colors.primary.contrast} />
-            <Text style={[styles.buttonText, { color: colors.primary.contrast }]}>
-              Start Session
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity 
-            style={[styles.stopButton, { 
-              backgroundColor: colors.error.light,
-              borderColor: colors.error.border
-            }]} 
-            onPress={confirmStopSession}
-            activeOpacity={0.8}
-          >
-            <StopCircle size={24} color={colors.error.main} />
-            <Text style={[styles.stopButtonText, { color: colors.error.main }]}>
-              Stop Session
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      
-      <View style={styles.statusContainer}>
-        {isActive ? (
-          <Text style={[styles.statusText, { color: colors.text.secondary }]}>
-            Session active • Next entry in {Math.floor(timeUntilNext15Min / 60)}:{(timeUntilNext15Min % 60).toString().padStart(2, '0')}
-          </Text>
-        ) : (
-          <Text style={[styles.statusText, { color: colors.text.secondary }]}>
-            Session inactive • Start to begin tracking
-          </Text>
-        )}
-      </View>
-      
-      <SessionCompletionModal 
-        visible={showCompletionModal}
-        onClose={() => {
-          setShowCompletionModal(false);
-          setIsActive(false);
-        }}
-        onSubmit={handleCompletionSubmit}
-        currentTime={currentTime}
-      />
-      
-      <StopSessionModal
-        visible={showStopConfirmation}
-        onClose={() => setShowStopConfirmation(false)}
-        onConfirm={handleStopConfirmed}
-      />
-    </SafeAreaView>
-  );
-}
+import { BugPlay, Bell, MessageSquareWarning } from 'lucide-react-native';
+import * as Notifications from 'expo-notifications';
 
 const styles = StyleSheet.create({
   container: {
@@ -311,7 +105,6 @@ const styles = StyleSheet.create({
   currentTimeText: {
     fontFamily: 'Inter-Regular',
     fontSize: 16,
-    color: '#64748B',
     marginTop: 8,
   },
   controlsContainer: {
@@ -319,27 +112,22 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   startButton: {
-    backgroundColor: '#3B82F6',
     paddingVertical: 16,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
   },
   stopButton: {
-    backgroundColor: '#FEF2F2',
     paddingVertical: 16,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -348,13 +136,11 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontFamily: 'Inter-SemiBold',
-    color: '#fff',
     fontSize: 16,
     marginLeft: 8,
   },
   stopButtonText: {
     fontFamily: 'Inter-SemiBold',
-    color: '#EF4444',
     fontSize: 16,
     marginLeft: 8,
   },
@@ -368,7 +154,6 @@ const styles = StyleSheet.create({
   statusText: {
     fontFamily: 'Inter-Medium',
     fontSize: 14,
-    color: '#64748B',
   },
   permissionDeniedContainer: {
     flexDirection: 'row',
@@ -378,7 +163,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FCA5A5',
   },
   permissionDeniedText: {
     flex: 1,
@@ -387,4 +171,314 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  foregroundNotificationButton: {
+    backgroundColor: '#FFA500',
+    padding: 10,
+    borderRadius: 8,
+    marginVertical: 10,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  foregroundNotificationButtonText: {
+    color: 'white',
+    fontFamily: 'Inter-SemiBold',
+    marginLeft: 8,
+  },
 });
+
+export default function TimerScreen() {
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [showStopConfirmation, setShowStopConfirmation] = useState(false);
+  const [showTestModeButton, setShowTestModeButton] = useState(false);
+  const progress = useSharedValue(0);
+  const { colors } = useTheme();
+
+  const {
+    currentTime,
+    startSession,
+    stopSession,
+    isRunning,
+    remainingSeconds,
+    timerStatus,
+    setTimerStatus,
+    testMode,
+    checkTimeAndTriggerCompletion,
+  } = useTimer();
+
+  const { setupNotifications, permissionDeniedMessage } = useNotifications(
+    () => {
+      setShowCompletionModal(true);
+    }
+  );
+
+  useEffect(() => {
+    setupNotifications();
+    const timer = setTimeout(() => {
+      setShowTestModeButton(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [setupNotifications]);
+
+  useEffect(() => {
+    if (isRunning) {
+      checkTimeAndTriggerCompletion();
+    }
+  }, [isRunning, remainingSeconds, checkTimeAndTriggerCompletion, testMode]);
+
+  useEffect(() => {
+    if (timerStatus === 'completed') {
+      setShowCompletionModal(true);
+      scheduleNotificationAsync();
+    }
+  }, [timerStatus]);
+
+  useEffect(() => {
+    if (isRunning) {
+      const totalDuration = testMode ? 5 : 900;
+      progress.value = withTiming(1 - remainingSeconds / totalDuration, {
+        duration: 1000,
+        easing: Easing.linear,
+      });
+    } else {
+      progress.value = withTiming(0, { duration: 200, easing: Easing.linear });
+    }
+  }, [remainingSeconds, isRunning, testMode, progress]);
+
+  const handleStartSession = () => {
+    startSession(false);
+  };
+
+  const handleTestSession = () => {
+    startSession(true);
+  };
+
+  const confirmStopSession = () => {
+    setShowStopConfirmation(true);
+  };
+
+  const handleStopConfirmed = () => {
+    stopSession();
+    setShowStopConfirmation(false);
+  };
+
+  const handleCompletionSubmit = () => {
+    setShowCompletionModal(false);
+    setTimerStatus('idle');
+  };
+
+  const animatedCircleStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${progress.value * 360}deg` }],
+    };
+  });
+
+  const gradientColors =
+    Array.isArray(colors.gradient.primary) &&
+    colors.gradient.primary.length >= 2
+      ? (colors.gradient.primary as [string, string, ...string[]])
+      : (['transparent', 'transparent'] as [string, string, ...string[]]);
+
+  return (
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      <StatusBar style="dark" />
+
+      <LinearGradient
+        colors={gradientColors}
+        style={StyleSheet.absoluteFillObject}
+        start={{ x: 0, y: 0 } as LinearGradientPoint}
+        end={{ x: 1, y: 1 } as LinearGradientPoint}
+      />
+
+      <View style={styles.headerContainer}>
+        <Text style={[styles.title, { color: colors.text.primary }]}>
+          Time Tracker
+        </Text>
+        {showTestModeButton && !isRunning && (
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={[styles.testButton, { backgroundColor: colors.surface }]}
+              onPress={handleTestSession}
+            >
+              <BugPlay size={16} color={colors.text.secondary} />
+              <Text
+                style={[
+                  styles.testButtonText,
+                  { color: colors.text.secondary },
+                ]}
+              >
+                Test Mode (5s)
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        <Text style={[styles.subtitle, { color: colors.text.secondary }]}>
+          Track your productivity in 15-minute intervals
+        </Text>
+
+        <TouchableOpacity
+          style={styles.foregroundNotificationButton}
+          onPress={async () => {
+            try {
+              console.log(
+                'Attempting to schedule a foreground test notification...'
+              );
+              await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: 'Foreground Test!',
+                  body: 'Does this notification show up immediately?',
+                },
+                trigger: null,
+              });
+              console.log('Foreground test notification scheduled.');
+            } catch (e) {
+              console.error(
+                'Failed to schedule foreground test notification:',
+                e
+              );
+            }
+          }}
+        >
+          <MessageSquareWarning size={18} color="white" />
+          <Text style={styles.foregroundNotificationButtonText}>
+            Test FG Notification
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {permissionDeniedMessage && (
+        <View
+          style={[
+            styles.permissionDeniedContainer,
+            {
+              backgroundColor: colors.error.light,
+              borderColor: colors.error.border,
+            },
+          ]}
+        >
+          <Bell size={20} color={colors.error.main} />
+          <Text
+            style={[styles.permissionDeniedText, { color: colors.error.main }]}
+          >
+            {permissionDeniedMessage}
+          </Text>
+        </View>
+      )}
+
+      <View style={styles.timerContainer}>
+        <View style={styles.timerShadow}>
+          <View
+            style={[
+              styles.timerBorder,
+              {
+                backgroundColor: colors.surface,
+                borderColor:
+                  colors.border?.default ||
+                  String(colors.border) ||
+                  colors.surface,
+              },
+            ]}
+          >
+            <Animated.View
+              style={[
+                styles.progressCircle,
+                animatedCircleStyle,
+                {
+                  borderLeftColor: colors.primary.main,
+                  borderTopColor: colors.primary.main,
+                },
+              ]}
+            />
+            <View style={styles.timerContent}>
+              <TimerDisplay
+                minutes={Math.floor(remainingSeconds / 60)}
+                seconds={remainingSeconds % 60}
+                isActive={isRunning}
+                testMode={testMode}
+              />
+              <Text
+                style={[
+                  styles.currentTimeText,
+                  { color: colors.text.secondary },
+                ]}
+              >
+                {currentTime}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.controlsContainer}>
+        {!isRunning ? (
+          <TouchableOpacity
+            style={[
+              styles.startButton,
+              {
+                backgroundColor: colors.primary.main,
+                shadowColor: colors.primary.main,
+              },
+            ]}
+            onPress={handleStartSession}
+            activeOpacity={0.8}
+          >
+            <Play size={24} color={colors.primary.contrast} />
+            <Text
+              style={[styles.buttonText, { color: colors.primary.contrast }]}
+            >
+              Start Session
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[
+              styles.stopButton,
+              {
+                backgroundColor: colors.error.light,
+                borderColor: colors.error.border,
+              },
+            ]}
+            onPress={confirmStopSession}
+            activeOpacity={0.8}
+          >
+            <StopCircle size={24} color={colors.error.main} />
+            <Text style={[styles.stopButtonText, { color: colors.error.main }]}>
+              Stop Session
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={styles.statusContainer}>
+        {isRunning ? (
+          <Text style={[styles.statusText, { color: colors.text.secondary }]}>
+            Session active • Next entry in {Math.floor(remainingSeconds / 60)}:
+            {(remainingSeconds % 60).toString().padStart(2, '0')}
+          </Text>
+        ) : (
+          <Text style={[styles.statusText, { color: colors.text.secondary }]}>
+            Session inactive • Start to begin tracking
+          </Text>
+        )}
+      </View>
+
+      <SessionCompletionModal
+        visible={showCompletionModal}
+        onClose={() => {
+          setShowCompletionModal(false);
+          setTimerStatus('idle');
+        }}
+        onSubmit={handleCompletionSubmit}
+        currentTime={currentTime}
+      />
+
+      <StopSessionModal
+        visible={showStopConfirmation}
+        onClose={() => setShowStopConfirmation(false)}
+        onConfirm={handleStopConfirmed}
+      />
+    </SafeAreaView>
+  );
+}

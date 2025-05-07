@@ -1,21 +1,23 @@
 import { Platform, AppState } from 'react-native';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { scheduleNotificationAsync } from '@/utils/notifications';
 import { getSessionState, saveSessionState } from '@/utils/storage';
 import { SessionState, TimerStatus } from '@/types/entry';
-import { startTimer, stopTimer } from '@/utils/backgroundTimer';
+import * as Notifications from 'expo-notifications';
+import {
+  startTimer as startBackgroundTask,
+  stopTimer as stopBackgroundTask,
+} from '@/utils/backgroundTimer';
 
-const TEST_DURATION = 5; // 5 seconds for all platforms
+const TEST_DURATION = 5; // 5 seconds
 
 export const useTimer = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
-  const [timeUntilNext15Min, setTimeUntilNext15Min] = useState(0);
   const [currentTime, setCurrentTime] = useState('');
   const [timerStatus, setTimerStatus] = useState<TimerStatus>('idle');
   const [lastNotificationTime, setLastNotificationTime] = useState('');
   const [testMode, setTestMode] = useState(false);
-  const testTimerRef = useRef<number | null>(null);
+  const intervalRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(Date.now());
   const sessionRef = useRef<SessionState>({
@@ -24,109 +26,153 @@ export const useTimer = () => {
     currentEntry: null,
   });
 
-  // Handle app state changes
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      const now = Date.now();
-      if (nextAppState === 'active' && isRunning) {
-        // App came back to foreground, calculate elapsed time
-        const elapsed = now - lastUpdateRef.current;
-        if (testMode) {
-          // For test mode, directly update remaining seconds
-          setRemainingSeconds((prev) =>
-            Math.max(0, prev - Math.floor(elapsed / 1000))
-          );
-        } else {
-          // For normal mode, recalculate time until next 15-min interval
-          calculateTimeUntilNext15Min();
-        }
-      }
-      lastUpdateRef.current = now;
-    });
+  const updateCurrentTimeDisplay = useCallback(() => {
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hour12 = hours % 12 || 12;
+    const formattedMinutes = minutes.toString().padStart(2, '0');
+    setCurrentTime(`${hour12}:${formattedMinutes} ${ampm}`);
+  }, []);
 
-    return () => {
-      subscription.remove();
-    };
-  }, [isRunning, testMode]);
+  const resetTimerToNextInterval = useCallback(() => {
+    const now = new Date();
+    const currentMinutes = now.getMinutes();
+    const currentSeconds = now.getSeconds();
 
-  // Load session state on mount
+    const minutesPastLastQuarter = currentMinutes % 15;
+    const secondsElapsedInCurrentBlock =
+      minutesPastLastQuarter * 60 + currentSeconds;
+    let secondsLeft = 15 * 60 - secondsElapsedInCurrentBlock;
+
+    if (secondsLeft === 0 && secondsElapsedInCurrentBlock === 0) {
+      secondsLeft = 15 * 60;
+    } else if (secondsLeft === 15 * 60) {
+    }
+
+    setRemainingSeconds(secondsLeft);
+    updateCurrentTimeDisplay();
+    return secondsLeft;
+  }, [updateCurrentTimeDisplay]);
+
   useEffect(() => {
     const loadSession = async () => {
       const savedSession = await getSessionState();
       if (savedSession) {
         sessionRef.current = savedSession;
-        if (savedSession.isActive) {
+        if (savedSession.isActive && savedSession.startTime) {
           setIsRunning(true);
-          calculateTimeUntilNext15Min();
+          lastUpdateRef.current = new Date(savedSession.startTime).getTime();
+          setTestMode(false);
+          resetTimerToNextInterval();
         }
       }
     };
-
     loadSession();
-  }, []);
+  }, [resetTimerToNextInterval]);
 
-  // Calculate time until next 15-minute interval (0, 15, 30, 45)
-  const calculateTimeUntilNext15Min = useCallback(() => {
-    const now = new Date();
-    const minutes = now.getMinutes();
-    const seconds = now.getSeconds();
-
-    // Calculate the next 15-minute mark
-    const minutesUntilNext15 = 15 - (minutes % 15);
-    const secondsTotal = minutesUntilNext15 * 60 - seconds;
-
-    setTimeUntilNext15Min(secondsTotal);
-    setRemainingSeconds(secondsTotal);
-
-    // Format the current time
-    const hours = now.getHours();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const hour12 = hours % 12 || 12;
-    const formattedMinutes = minutes.toString().padStart(2, '0');
-    setCurrentTime(`${hour12}:${formattedMinutes} ${ampm}`);
-
-    return secondsTotal;
-  }, []);
-
-  // Check if it's time to trigger a notification
-  const checkTimeAndTriggerNotification = useCallback(() => {
-    if (!isRunning) return false;
-
-    const isCompleted = testMode
-      ? remainingSeconds <= 0
-      : timeUntilNext15Min === 0;
-
-    if (isCompleted) {
-      const now = new Date();
-      const minutes = now.getMinutes();
-      const timeKey = `${now.getHours()}:${minutes}`;
-
-      if (timeKey !== lastNotificationTime) {
-        setLastNotificationTime(timeKey);
-        setTimerStatus('completed');
-
-        if (!testMode) {
-          calculateTimeUntilNext15Min();
-          setIsRunning(true); // Keep timer running
-        } else {
-          setIsRunning(false); // Stop only in test mode
-        }
-
-        return true;
+  useEffect(() => {
+    if (isRunning) {
+      lastUpdateRef.current = Date.now();
+      intervalRef.current = setInterval(() => {
+        setRemainingSeconds((prevSeconds) => {
+          const newRemaining = Math.max(0, prevSeconds - 1);
+          return newRemaining;
+        });
+      }, 1000);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     }
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isRunning]);
 
-    return false;
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      const now = Date.now();
+
+      if (sessionRef.current.isActive) {
+        if (nextAppState === 'active') {
+          console.log('[useTimer] App became active. Session is active.');
+          const elapsedMs = now - lastUpdateRef.current;
+          const elapsedSeconds = Math.floor(elapsedMs / 1000);
+
+          if (testMode) {
+            setRemainingSeconds((prev) => Math.max(0, prev - elapsedSeconds));
+          } else {
+            resetTimerToNextInterval();
+          }
+          lastUpdateRef.current = now;
+        } else if (nextAppState.match(/inactive|background/)) {
+          console.log(
+            '[useTimer] App going to background. Session is active. Scheduling "running in background" notification.'
+          );
+          Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Session Still Running',
+              body: 'Your focus session is active in the background.',
+              sound: false,
+            },
+            trigger: null,
+          }).catch((error) =>
+            console.warn(
+              'Failed to schedule "running in background" notification:',
+              error
+            )
+          );
+          lastUpdateRef.current = now;
+        }
+      } else {
+        if (nextAppState === 'active') {
+          console.log('[useTimer] App became active. Session NOT active.');
+          lastUpdateRef.current = now;
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [testMode, resetTimerToNextInterval]);
+
+  const checkTimeAndTriggerCompletion = useCallback(() => {
+    if (remainingSeconds > 0) return false;
+
+    const now = new Date();
+    const minutes = now.getMinutes();
+    const timeKey = `${now.getHours()}:${minutes}`;
+
+    if (timerStatus === 'completed' && timeKey === lastNotificationTime) {
+      if (!testMode) {
+        resetTimerToNextInterval();
+      }
+      return false;
+    }
+
+    setLastNotificationTime(timeKey);
+    setTimerStatus('completed');
+
+    if (testMode) {
+      setIsRunning(false);
+    } else {
+      resetTimerToNextInterval();
+    }
+    return true;
   }, [
-    isRunning,
-    lastNotificationTime,
-    timeUntilNext15Min,
-    testMode,
     remainingSeconds,
-    setTimerStatus,
+    timerStatus,
+    lastNotificationTime,
+    testMode,
+    resetTimerToNextInterval,
   ]);
 
-  // Start the timer
   const startSession = useCallback(
     (isTest: boolean = false) => {
       setIsRunning(true);
@@ -134,99 +180,62 @@ export const useTimer = () => {
       lastUpdateRef.current = Date.now();
       setTimerStatus('running');
       setTestMode(isTest);
+      updateCurrentTimeDisplay();
 
-      const newSession = {
+      const sessionStartTime = new Date().toISOString();
+      sessionRef.current = {
         isActive: true,
-        startTime: new Date().toISOString(),
+        startTime: sessionStartTime,
         currentEntry: null,
       };
-      sessionRef.current = newSession;
-      saveSessionState(newSession);
+      saveSessionState(sessionRef.current);
 
       if (isTest) {
-        // For test mode, start a 5-second countdown
         setRemainingSeconds(TEST_DURATION);
-        setTimeUntilNext15Min(TEST_DURATION);
       } else {
-        calculateTimeUntilNext15Min();
+        resetTimerToNextInterval();
         if (Platform.OS !== 'web') {
-          startTimer();
+          startBackgroundTask();
         }
       }
     },
-    [calculateTimeUntilNext15Min]
+    [resetTimerToNextInterval, updateCurrentTimeDisplay]
   );
 
-  // Stop the timer
-  const stopSession = useCallback(() => {
+  const stopSession = useCallback(async () => {
+    setIsRunning(false);
+    setTimerStatus('idle');
+
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    sessionRef.current = {
+      isActive: false,
+      startTime: null,
+      currentEntry: null,
+    };
+
     try {
-      setIsRunning(false);
-      setTimerStatus('idle');
-      setTestMode(false);
-
-      if (testTimerRef.current) {
-        clearInterval(testTimerRef.current);
-        testTimerRef.current = null;
+      await saveSessionState(sessionRef.current);
+      if (Platform.OS !== 'web') {
+        await stopBackgroundTask();
       }
-
-      const newSession = {
-        isActive: false,
-        startTime: null,
-        currentEntry: null,
-      };
-      sessionRef.current = newSession;
-
-      // Save session state and stop timer in parallel
-      return Promise.all([
-        saveSessionState(newSession),
-        Platform.OS !== 'web' ? stopTimer() : Promise.resolve(),
-      ]).catch((error) => {
-        console.warn('Error stopping session:', error);
-      });
     } catch (error) {
-      console.warn('Error in stopSession:', error);
+      console.warn('Error stopping session:', error);
     }
   }, []);
 
-  // Update timer every second
-  useEffect(() => {
-    if (isRunning) {
-      const timer = setInterval(() => {
-        if (testMode) {
-          const now = Date.now();
-          const elapsed = now - lastUpdateRef.current;
-          lastUpdateRef.current = now;
-
-          setRemainingSeconds((prev) => {
-            const next = Math.max(0, prev - Math.floor(elapsed / 1000));
-            return next;
-          });
-        } else {
-          calculateTimeUntilNext15Min();
-          if (timeUntilNext15Min === 0) {
-            setTimerStatus('completed');
-            calculateTimeUntilNext15Min(); // Start next interval immediately
-          }
-        }
-      }, 1000);
-
-      testTimerRef.current = timer;
-      return () => {
-        clearInterval(timer);
-      };
-    }
-  }, [isRunning, testMode, calculateTimeUntilNext15Min, timeUntilNext15Min]);
-
   return {
     isRunning,
-    timeUntilNext15Min,
-    currentTime,
     remainingSeconds,
-    checkTimeAndTriggerNotification,
+    currentTime,
+    timerStatus,
+    testMode,
     startSession,
     stopSession,
-    timerStatus,
+    checkTimeAndTriggerCompletion,
     setTimerStatus,
-    testMode,
   };
 };

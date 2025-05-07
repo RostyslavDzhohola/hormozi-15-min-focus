@@ -16,8 +16,16 @@ const BACKGROUND_TIMER_TASK = 'background-timer-task';
 // Define the background task outside of the registration function
 TaskManager.defineTask(BACKGROUND_TIMER_TASK, async () => {
   try {
-    log('Background task executed');
-    // Your background task logic here
+    log('Background task executed - Attempting simplified notification');
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Background Task Test',
+        body: 'This notification is from the background task.',
+        // data: { type: 'entry_reminder' }, // Temporarily remove data for simplicity
+      },
+      trigger: null, // Send immediately
+    });
+    log('Simplified notification scheduled by background task');
     return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch (error) {
     log('Background task error:', error);
@@ -68,7 +76,7 @@ async function registerBackgroundTimer() {
 
       if (!isRegistered) {
         await BackgroundFetch.registerTaskAsync(BACKGROUND_TIMER_TASK, {
-          minimumInterval: 60 * 15, // 15 minutes
+          minimumInterval: 60, // Temporarily set to 60 seconds (1 minute) for testing
           stopOnTerminate: false,
           startOnBoot: true,
         });
