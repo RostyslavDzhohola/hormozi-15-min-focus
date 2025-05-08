@@ -12,7 +12,6 @@ export interface TimeSlot {
 }
 
 export interface SettingsData {
-  notificationsEnabled: boolean;
   darkModeEnabled: boolean;
   theme: 'light' | 'dark';
 }

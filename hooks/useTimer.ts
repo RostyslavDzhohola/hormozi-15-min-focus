@@ -2,7 +2,6 @@ import { Platform, AppState } from 'react-native';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSessionState, saveSessionState } from '@/utils/storage';
 import { SessionState, TimerStatus } from '@/types/entry';
-import * as Notifications from 'expo-notifications';
 import {
   startTimer as startBackgroundTask,
   stopTimer as stopBackgroundTask,
@@ -15,7 +14,6 @@ export const useTimer = () => {
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [currentTime, setCurrentTime] = useState('');
   const [timerStatus, setTimerStatus] = useState<TimerStatus>('idle');
-  const [lastNotificationTime, setLastNotificationTime] = useState('');
   const [testMode, setTestMode] = useState(false);
   const intervalRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
@@ -111,22 +109,7 @@ export const useTimer = () => {
           }
           lastUpdateRef.current = now;
         } else if (nextAppState.match(/inactive|background/)) {
-          console.log(
-            '[useTimer] App going to background. Session is active. Scheduling "running in background" notification.'
-          );
-          Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'Session Still Running',
-              body: 'Your focus session is active in the background.',
-              sound: false,
-            },
-            trigger: null,
-          }).catch((error) =>
-            console.warn(
-              'Failed to schedule "running in background" notification:',
-              error
-            )
-          );
+          console.log('[useTimer] App going to background. Session is active.');
           lastUpdateRef.current = now;
         }
       } else {
@@ -145,18 +128,6 @@ export const useTimer = () => {
   const checkTimeAndTriggerCompletion = useCallback(() => {
     if (remainingSeconds > 0) return false;
 
-    const now = new Date();
-    const minutes = now.getMinutes();
-    const timeKey = `${now.getHours()}:${minutes}`;
-
-    if (timerStatus === 'completed' && timeKey === lastNotificationTime) {
-      if (!testMode) {
-        resetTimerToNextInterval();
-      }
-      return false;
-    }
-
-    setLastNotificationTime(timeKey);
     setTimerStatus('completed');
 
     if (testMode) {
@@ -165,13 +136,7 @@ export const useTimer = () => {
       resetTimerToNextInterval();
     }
     return true;
-  }, [
-    remainingSeconds,
-    timerStatus,
-    lastNotificationTime,
-    testMode,
-    resetTimerToNextInterval,
-  ]);
+  }, [remainingSeconds, timerStatus, testMode, resetTimerToNextInterval]);
 
   const startSession = useCallback(
     (isTest: boolean = false) => {

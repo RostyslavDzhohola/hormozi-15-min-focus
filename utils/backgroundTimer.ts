@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
-import * as Notifications from 'expo-notifications';
+// import * as Notifications from 'expo-notifications'; // [EDIT_REMOVE]
 
 const DEBUG = true;
 
@@ -16,16 +16,7 @@ const BACKGROUND_TIMER_TASK = 'background-timer-task';
 // Define the background task outside of the registration function
 TaskManager.defineTask(BACKGROUND_TIMER_TASK, async () => {
   try {
-    log('Background task executed - Attempting simplified notification');
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Background Task Test',
-        body: 'This notification is from the background task.',
-        // data: { type: 'entry_reminder' }, // Temporarily remove data for simplicity
-      },
-      trigger: null, // Send immediately
-    });
-    log('Simplified notification scheduled by background task');
+    log('Background task executed.'); // [EDIT_ADD] - Keep a log that task ran
     return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch (error) {
     log('Background task error:', error);

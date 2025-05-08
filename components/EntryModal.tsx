@@ -1,15 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Modal, 
-  TextInput, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TextInput,
+  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { saveEntry } from '@/utils/storage';
 import * as Haptics from 'expo-haptics';
@@ -21,17 +21,22 @@ type EntryModalProps = {
   currentTime: string;
 };
 
-export function EntryModal({ visible, onClose, onSubmit, currentTime }: EntryModalProps) {
+export function EntryModal({
+  visible,
+  onClose,
+  onSubmit,
+  currentTime,
+}: EntryModalProps) {
   const [entry, setEntry] = useState('');
   const inputRef = useRef<TextInput>(null);
-  
+
   useEffect(() => {
     if (visible) {
       // Focus the text input when modal becomes visible
       setTimeout(() => {
         inputRef.current?.focus();
       }, 300);
-      
+
       // Vibrate to get user's attention if on a device
       if (Platform.OS !== 'web') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -41,7 +46,7 @@ export function EntryModal({ visible, onClose, onSubmit, currentTime }: EntryMod
       setEntry('');
     }
   }, [visible]);
-  
+
   const handleSubmit = () => {
     if (entry.trim().length > 0) {
       // Save the entry
@@ -51,24 +56,19 @@ export function EntryModal({ visible, onClose, onSubmit, currentTime }: EntryMod
         timestamp: new Date().toISOString(),
         timeLabel: currentTime,
       });
-      
+
       // Notify parent component
       onSubmit(entry);
-      
+
       // Clear the input
       setEntry('');
-      
-      // Provide haptic feedback if on a device
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
     }
   };
-  
+
   if (!visible) {
     return null;
   }
-  
+
   return (
     <Modal
       animationType="slide"
@@ -84,11 +84,9 @@ export function EntryModal({ visible, onClose, onSubmit, currentTime }: EntryMod
           <View style={styles.content}>
             <View style={styles.header}>
               <Text style={styles.title}>What did you accomplish?</Text>
-              <Text style={styles.subtitle}>
-                Time period: {currentTime}
-              </Text>
+              <Text style={styles.subtitle}>Time period: {currentTime}</Text>
             </View>
-            
+
             <View style={styles.inputContainer}>
               <TextInput
                 ref={inputRef}
@@ -102,24 +100,22 @@ export function EntryModal({ visible, onClose, onSubmit, currentTime }: EntryMod
                 maxLength={300}
                 autoFocus={Platform.OS === 'web'}
               />
-              <Text style={styles.characterCount}>
-                {entry.length}/300
-              </Text>
+              <Text style={styles.characterCount}>{entry.length}/300</Text>
             </View>
-            
+
             <View style={styles.buttonContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.button, styles.cancelButton]}
                 onPress={onClose}
               >
                 <Text style={styles.cancelButtonText}>Skip</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[
-                  styles.button, 
+                  styles.button,
                   styles.submitButton,
-                  entry.trim().length === 0 && styles.disabledButton
+                  entry.trim().length === 0 && styles.disabledButton,
                 ]}
                 onPress={handleSubmit}
                 disabled={entry.trim().length === 0}

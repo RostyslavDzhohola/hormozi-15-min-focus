@@ -18,13 +18,10 @@ import Animated, {
 import { useTimer } from '@/hooks/useTimer';
 import { SessionCompletionModal } from '@/components/SessionCompletionModal';
 import { StopSessionModal } from '@/components/StopSessionModal';
-import { scheduleNotificationAsync } from '@/utils/notifications';
 import { TimerDisplay } from '@/components/TimerDisplay';
-import { useNotifications } from '@/hooks/useNotifications';
 import { LinearGradient, LinearGradientPoint } from 'expo-linear-gradient';
 import { useTheme } from '@/components/ThemeProvider';
-import { BugPlay, Bell, MessageSquareWarning } from 'lucide-react-native';
-import * as Notifications from 'expo-notifications';
+import { BugPlay, MessageSquareWarning } from 'lucide-react-native';
 
 const styles = StyleSheet.create({
   container: {
@@ -171,20 +168,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  foregroundNotificationButton: {
-    backgroundColor: '#FFA500',
-    padding: 10,
-    borderRadius: 8,
-    marginVertical: 10,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  foregroundNotificationButtonText: {
-    color: 'white',
-    fontFamily: 'Inter-SemiBold',
-    marginLeft: 8,
-  },
 });
 
 export default function TimerScreen() {
@@ -206,19 +189,12 @@ export default function TimerScreen() {
     checkTimeAndTriggerCompletion,
   } = useTimer();
 
-  const { setupNotifications, permissionDeniedMessage } = useNotifications(
-    () => {
-      setShowCompletionModal(true);
-    }
-  );
-
   useEffect(() => {
-    setupNotifications();
     const timer = setTimeout(() => {
       setShowTestModeButton(true);
     }, 3000);
     return () => clearTimeout(timer);
-  }, [setupNotifications]);
+  }, []);
 
   useEffect(() => {
     if (isRunning) {
@@ -229,7 +205,6 @@ export default function TimerScreen() {
   useEffect(() => {
     if (timerStatus === 'completed') {
       setShowCompletionModal(true);
-      scheduleNotificationAsync();
     }
   }, [timerStatus]);
 
@@ -317,56 +292,7 @@ export default function TimerScreen() {
         <Text style={[styles.subtitle, { color: colors.text.secondary }]}>
           Track your productivity in 15-minute intervals
         </Text>
-
-        <TouchableOpacity
-          style={styles.foregroundNotificationButton}
-          onPress={async () => {
-            try {
-              console.log(
-                'Attempting to schedule a foreground test notification...'
-              );
-              await Notifications.scheduleNotificationAsync({
-                content: {
-                  title: 'Foreground Test!',
-                  body: 'Does this notification show up immediately?',
-                  sound: 'default',
-                },
-                trigger: null,
-              });
-              console.log('Foreground test notification scheduled.');
-            } catch (e) {
-              console.error(
-                'Failed to schedule foreground test notification:',
-                e
-              );
-            }
-          }}
-        >
-          <MessageSquareWarning size={18} color="white" />
-          <Text style={styles.foregroundNotificationButtonText}>
-            Test FG Notification
-          </Text>
-        </TouchableOpacity>
       </View>
-
-      {permissionDeniedMessage && (
-        <View
-          style={[
-            styles.permissionDeniedContainer,
-            {
-              backgroundColor: colors.error.light,
-              borderColor: colors.error.border,
-            },
-          ]}
-        >
-          <Bell size={20} color={colors.error.main} />
-          <Text
-            style={[styles.permissionDeniedText, { color: colors.error.main }]}
-          >
-            {permissionDeniedMessage}
-          </Text>
-        </View>
-      )}
 
       <View style={styles.timerContainer}>
         <View style={styles.timerShadow}>

@@ -5,56 +5,42 @@ import { useCallback, useContext } from 'react';
 import { ThemeContext } from '@/components/ThemeProvider';
 
 interface Settings {
-  notificationsEnabled: boolean;
   theme: 'light' | 'dark';
 }
 
 export function useSettings() {
   const { setTheme } = useContext(ThemeContext);
   const [settings, setSettings] = useState<Settings>({
-    notificationsEnabled: true,
-    theme: 'light'
+    theme: 'light',
   });
-  
+
   const loadSettings = useCallback(async () => {
     const savedSettings = await getSettings();
-    
+
     if (savedSettings) {
       const newSettings = {
         ...settings,
-        ...savedSettings
+        ...savedSettings,
       };
       setSettings(newSettings);
       setTheme(newSettings.theme || 'light');
     }
-    
   }, [setTheme]);
-  
+
   // Load settings on mount
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
-  
-  // Update notifications setting
-  const updateNotificationsEnabled = async (value: boolean) => {
-    const updatedSettings = {
-      ...settings,
-      notificationsEnabled: value,
-    };
-    await saveSettings(updatedSettings);
-    setSettings(updatedSettings);
-  };
-  
+
   // Reset all data
   const resetAllData = async () => {
     await clearAllData();
     setSettings({
-      notificationsEnabled: true,
       theme: 'light',
     });
     setTheme('light');
   };
-  
+
   // Toggle theme with transition
   const toggleTheme = async () => {
     const newTheme = settings.theme === 'light' ? 'dark' : 'light';
@@ -69,7 +55,6 @@ export function useSettings() {
 
   return {
     settings,
-    updateNotificationsEnabled,
     resetAllData,
     toggleTheme,
   };
