@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -229,7 +229,6 @@ export default function TimerScreen() {
 
   useEffect(() => {
     if (isRunning) {
-      // Use remainingSeconds directly when session starts for totalDuration approximation
       const totalDuration = testMode ? 5 : remainingSeconds;
       progress.value = withTiming(1 - remainingSeconds / totalDuration, {
         duration: 1000,
@@ -238,32 +237,73 @@ export default function TimerScreen() {
     } else {
       progress.value = withTiming(0, { duration: 200, easing: Easing.linear });
     }
-  }, [remainingSeconds, isRunning, testMode, progress]); // Removed startSession from dependencies
+  }, [remainingSeconds, isRunning, testMode, progress]);
 
   useEffect(() => {
     requestNotificationPermissions();
   }, []);
 
+  const handleNotificationInteraction = useCallback(
+    (response: Notifications.NotificationResponse | null) => {
+      if (!response) {
+        console.log('handleNotificationInteraction: No response provided.');
+        return;
+      }
+
+      const notificationData = response.notification.request.content.data;
+      console.log(
+        'handleNotificationInteraction: Received response with data:',
+        notificationData
+      );
+
+      if (
+        notificationData &&
+        (notificationData.type === 'mainSessionCompleteOSTrigger' ||
+          notificationData.type === 'testModeCompleteOSTrigger')
+      ) {
+        console.log(
+          `handleNotificationInteraction: Matched type ${notificationData.type}. Navigating and setting status.`
+        );
+        // @ts-expect-error navigation.navigate can accept a string
+        navigation.navigate('index'); // Ensure user is on the timer screen
+        setTimerStatus('completed'); // This will trigger the modal via another useEffect
+      } else {
+        console.log(
+          'handleNotificationInteraction: Notification data type did not match or no data.'
+        );
+      }
+    },
+    [navigation, setTimerStatus]
+  ); // Dependencies for useCallback
+
   useEffect(() => {
+    // Check if the app was opened by a notification
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) {
+        console.log(
+          'App opened by notification, handling initial response:',
+          response.notification.request.content.data?.type
+        );
+        handleNotificationInteraction(response);
+      }
+    });
+
+    // Listen for further notification interactions while the app is running
     const subscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
-        const notificationData = response.notification.request.content.data;
-        if (
-          notificationData &&
-          (notificationData.type === 'mainSessionCompleteOSTrigger' ||
-            notificationData.type === 'testModeCompleteOSTrigger')
-        ) {
-          // @ts-expect-error navigation.navigate can accept a string
-          navigation.navigate('index'); // Navigate to the timer screen first
-          setTimerStatus('completed'); // Then set status to trigger modal via the other useEffect
-        }
+        console.log(
+          'Notification response received while app is running, handling subsequent response:',
+          response.notification.request.content.data?.type
+        );
+        handleNotificationInteraction(response);
       }
     );
 
     return () => {
+      console.log('Cleaning up notification listeners.');
       subscription.remove();
     };
-  }, [setTimerStatus, navigation]);
+  }, [handleNotificationInteraction]); // useEffect dependency is the memoized handler
 
   const requestNotificationPermissions = async () => {
     const { status } = await Notifications.requestPermissionsAsync();
