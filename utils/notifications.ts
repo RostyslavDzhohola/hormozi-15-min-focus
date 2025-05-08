@@ -8,22 +8,12 @@ Audio.setAudioModeAsync({
   staysActiveInBackground: true,
 });
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    priority: Notifications.AndroidNotificationPriority.HIGH,
-  }),
-});
-
 // Request notifications permissions
 export async function requestPermissionsAsync() {
   if (Platform.OS === 'web') {
     return; // Notifications not supported on web
   }
-  
+
   const { status } = await Notifications.requestPermissionsAsync({
     ios: {
       allowAlert: true,
@@ -32,7 +22,7 @@ export async function requestPermissionsAsync() {
       allowAnnouncements: true,
     },
   });
-  
+
   if (status !== 'granted') {
     console.log('Notification permission not granted');
   }
@@ -78,6 +68,6 @@ export async function cancelAllScheduledNotificationsAsync() {
   if (Platform.OS === 'web') {
     return; // Notifications not supported on web
   }
-  
+
   await Notifications.cancelAllScheduledNotificationsAsync();
 }

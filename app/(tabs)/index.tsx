@@ -329,6 +329,7 @@ export default function TimerScreen() {
                 content: {
                   title: 'Foreground Test!',
                   body: 'Does this notification show up immediately?',
+                  sound: 'default',
                 },
                 trigger: null,
               });
