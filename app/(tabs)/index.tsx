@@ -229,7 +229,8 @@ export default function TimerScreen() {
 
   useEffect(() => {
     if (isRunning) {
-      const totalDuration = testMode ? 5 : 900;
+      // Use remainingSeconds directly when session starts for totalDuration approximation
+      const totalDuration = testMode ? 5 : remainingSeconds;
       progress.value = withTiming(1 - remainingSeconds / totalDuration, {
         duration: 1000,
         easing: Easing.linear,
@@ -237,15 +238,13 @@ export default function TimerScreen() {
     } else {
       progress.value = withTiming(0, { duration: 200, easing: Easing.linear });
     }
-  }, [remainingSeconds, isRunning, testMode, progress]);
+  }, [remainingSeconds, isRunning, testMode, progress]); // Removed startSession from dependencies
 
   useEffect(() => {
-    // Request notification permissions on component mount
     requestNotificationPermissions();
   }, []);
 
   useEffect(() => {
-    // Listener for notification responses (e.g., when a user taps a notification)
     const subscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         const notificationData = response.notification.request.content.data;
@@ -271,44 +270,37 @@ export default function TimerScreen() {
     setNotificationPermission(status === 'granted');
   };
 
-  const scheduleDelayedNotificationForTestMode = async () => {
+  const scheduleDelayedNotificationForTestMode = async (seconds: number) => {
     console.log(
-      'scheduleDelayedNotificationForTestMode: Attempting to schedule...'
+      `scheduleDelayedNotificationForTestMode: Attempting to schedule with ${seconds}s delay...`
     );
     try {
-      // First, ensure permissions are granted
       let { status } = await Notifications.getPermissionsAsync();
       if (status !== 'granted') {
-        console.log(
-          'scheduleDelayedNotificationForTestMode: Permission not granted, requesting...'
-        );
         const { status: newStatus } =
           await Notifications.requestPermissionsAsync();
-        status = newStatus; // Update status with the new permission result
+        status = newStatus;
       }
-
       if (status !== 'granted') {
         console.warn(
-          'scheduleDelayedNotificationForTestMode: Permission still not granted after request.'
+          'scheduleDelayedNotificationForTestMode: Permission still not granted.'
         );
         alert(
-          'Notification permission is required for test mode completion alerts. Please enable it in settings.'
+          'Notification permission is required for test mode. Please enable it.'
         );
         return;
       }
-
-      // Schedule the notification with a 5-second delay
       await Notifications.scheduleNotificationAsync({
         content: {
           title: 'Test Mode Complete (OS Timer)!',
-          body: 'Your 5-second test session has finished.',
+          body: 'Your test session has finished.',
           data: { type: 'testModeCompleteOSTrigger' },
-          sound: 'default', // Ensure consistency with main session notification
+          sound: 'default',
         },
-        trigger: { seconds: 5 }, // OS handles the 5-second delay
+        trigger: { seconds: seconds },
       });
       console.log(
-        'scheduleDelayedNotificationForTestMode: Notification scheduled with 5s delay via OS.'
+        `scheduleDelayedNotificationForTestMode: Notification scheduled with ${seconds}s delay via OS.`
       );
     } catch (error) {
       console.error(
@@ -319,15 +311,15 @@ export default function TimerScreen() {
     }
   };
 
-  const scheduleDelayedNotificationForMainSession = async () => {
+  const scheduleNextBlockReminder = async () => {
     console.log(
-      'scheduleDelayedNotificationForMainSession: Attempting to schedule...'
+      'scheduleNextBlockReminder: Attempting to schedule next reminder...'
     );
     try {
       let { status } = await Notifications.getPermissionsAsync();
       if (status !== 'granted') {
         console.log(
-          'scheduleDelayedNotificationForMainSession: Permission not granted, requesting...'
+          'scheduleNextBlockReminder: Permission not granted, requesting...'
         );
         const { status: newStatus } =
           await Notifications.requestPermissionsAsync();
@@ -336,57 +328,123 @@ export default function TimerScreen() {
 
       if (status !== 'granted') {
         console.warn(
-          'scheduleDelayedNotificationForMainSession: Permission still not granted.'
+          'scheduleNextBlockReminder: Permission still not granted.'
         );
         alert(
-          'Notification permission is required for session completion alerts. Please enable it in settings.'
+          'Notification permission is required for session reminders. Please enable it in settings.'
         );
         return;
       }
 
+      // Cancel all existing notifications to ensure only one is scheduled for the main session
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      console.log(
+        'scheduleNextBlockReminder: Cancelled all previously scheduled notifications.'
+      );
+
+      const now = new Date();
+      let notificationDate = new Date(now);
+      notificationDate.setSeconds(0, 0); // Zero out seconds and milliseconds
+
+      const currentMinutes = now.getMinutes();
+      const minutesPastLastQuarter = currentMinutes % 15;
+
+      // Calculate next 15-minute slot
+      if (
+        minutesPastLastQuarter === 0 &&
+        now.getSeconds() === 0 &&
+        now.getMilliseconds() === 0
+      ) {
+        // If exactly on a quarter hour (e.g., 12:00:00), the next reminder is 15 mins from now.
+        notificationDate.setMinutes(currentMinutes + 15);
+      } else {
+        // Otherwise, it's the next upcoming quarter hour mark.
+        notificationDate.setMinutes(
+          currentMinutes - minutesPastLastQuarter + 15
+        );
+      }
+
+      // Ensure we are not scheduling for a time in the past (should be rare with this logic but good for safety)
+      if (notificationDate.getTime() <= Date.now()) {
+        console.log(
+          `scheduleNextBlockReminder: Calculated notification time is in the past (${notificationDate.toLocaleString()}), adjusting to next valid slot.`
+        );
+        // If it ended up in the past, it means we likely just crossed a 15-min boundary during calculation.
+        // Add another 15 minutes.
+        notificationDate.setMinutes(notificationDate.getMinutes() + 15);
+      }
+
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'Session Complete!',
-          body: 'Your 15-minute focus session has ended.',
+          title: 'Focus Session Reminder',
+          body: `Your next 15-min block ends at ${notificationDate.toLocaleTimeString(
+            [],
+            { hour: 'numeric', minute: '2-digit' }
+          )}.`,
           data: { type: 'mainSessionCompleteOSTrigger' },
-          sound: 'default', // Explicitly request default sound
+          sound: 'default',
         },
-        trigger: { seconds: 900 }, // 15 minutes
+        trigger: { date: notificationDate },
       });
       console.log(
-        'scheduleDelayedNotificationForMainSession: Notification scheduled with 15min delay via OS.'
+        `scheduleNextBlockReminder: Successfully scheduled reminder for: ${notificationDate.toLocaleString()}`
       );
     } catch (error) {
       console.error(
-        'scheduleDelayedNotificationForMainSession: Error scheduling notification:',
+        'scheduleNextBlockReminder: Error scheduling reminder:',
         error
       );
-      alert('Failed to schedule session completion notification.');
+      alert('Failed to schedule session reminder.');
     }
   };
 
   const handleStartSession = () => {
     startSession(false);
-    scheduleDelayedNotificationForMainSession();
+    scheduleNextBlockReminder();
   };
 
   const handleTestSession = () => {
-    startSession(true);
-    scheduleDelayedNotificationForTestMode();
+    const initialTestSeconds = startSession(true);
+    if (typeof initialTestSeconds === 'number') {
+      scheduleDelayedNotificationForTestMode(initialTestSeconds);
+    } else {
+      scheduleDelayedNotificationForTestMode(5);
+      console.warn(
+        'handleTestSession: initialTestSeconds from useTimer was not a number, defaulting to 5s for notification.'
+      );
+    }
   };
 
   const confirmStopSession = () => {
     setShowStopConfirmation(true);
   };
 
-  const handleStopConfirmed = () => {
+  const handleStopConfirmed = async () => {
     stopSession();
+    try {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      console.log(
+        'handleStopConfirmed: All scheduled notifications cancelled.'
+      );
+    } catch (error) {
+      console.error(
+        'handleStopConfirmed: Error cancelling notifications:',
+        error
+      );
+    }
     setShowStopConfirmation(false);
   };
 
   const handleCompletionSubmit = () => {
     setShowCompletionModal(false);
-    setTimerStatus('idle');
+    if (!testMode) {
+      // For main sessions, reschedule for the next block
+      scheduleNextBlockReminder();
+      setTimerStatus('running'); // Reflect that the timer is active for the next block
+    } else {
+      // For test sessions, go to idle
+      setTimerStatus('idle');
+    }
   };
 
   const animatedCircleStyle = useAnimatedStyle(() => {
@@ -542,7 +600,7 @@ export default function TimerScreen() {
         visible={showCompletionModal}
         onClose={() => {
           setShowCompletionModal(false);
-          setTimerStatus('idle');
+          stopSession();
         }}
         onSubmit={handleCompletionSubmit}
         currentTime={currentTime}

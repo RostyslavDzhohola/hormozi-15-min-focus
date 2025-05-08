@@ -2,6 +2,7 @@ import { Platform, AppState } from 'react-native';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSessionState, saveSessionState } from '@/utils/storage';
 import { SessionState, TimerStatus } from '@/types/entry';
+// import * as Notifications from 'expo-notifications'; // Removed as unused in this file
 
 const TEST_DURATION = 5; // 5 seconds
 
@@ -40,9 +41,12 @@ export const useTimer = () => {
       minutesPastLastQuarter * 60 + currentSeconds;
     let secondsLeft = 15 * 60 - secondsElapsedInCurrentBlock;
 
-    if (secondsLeft === 0 && secondsElapsedInCurrentBlock === 0) {
+    if (secondsLeft === 0 && secondsElapsedInCurrentBlock !== 0) {
+    } else if (
+      secondsLeft === 15 * 60 ||
+      (secondsLeft === 0 && secondsElapsedInCurrentBlock === 0)
+    ) {
       secondsLeft = 15 * 60;
-    } else if (secondsLeft === 15 * 60) {
     }
 
     setRemainingSeconds(secondsLeft);
@@ -153,11 +157,10 @@ export const useTimer = () => {
 
       if (isTest) {
         setRemainingSeconds(TEST_DURATION);
+        return TEST_DURATION;
       } else {
-        resetTimerToNextInterval();
-        if (Platform.OS !== 'web') {
-          // startBackgroundTask(); // Temporarily commented out for diagnosis
-        }
+        const initialSeconds = resetTimerToNextInterval();
+        return initialSeconds;
       }
     },
     [resetTimerToNextInterval, updateCurrentTimeDisplay]
@@ -180,9 +183,6 @@ export const useTimer = () => {
 
     try {
       await saveSessionState(sessionRef.current);
-      if (Platform.OS !== 'web') {
-        await stopBackgroundTask();
-      }
     } catch (error) {
       console.warn('Error stopping session:', error);
     }
