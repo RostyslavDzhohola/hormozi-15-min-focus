@@ -245,76 +245,6 @@ export default function TimerScreen() {
     setNotificationPermission(status === 'granted');
   };
 
-  const scheduleTestNotification = async () => {
-    console.log('scheduleTestNotification: Function called');
-    try {
-      // Check permission status first
-      const { status } = await Notifications.getPermissionsAsync();
-      console.log('scheduleTestNotification: Permission status -', status);
-
-      if (status !== 'granted') {
-        console.log(
-          'scheduleTestNotification: Permission not granted, requesting...'
-        );
-        // If not granted, request again
-        const { status: newStatus } =
-          await Notifications.requestPermissionsAsync();
-        console.log(
-          'scheduleTestNotification: New permission status -',
-          newStatus
-        );
-        if (newStatus !== 'granted') {
-          alert(
-            'You need to enable notifications permission to use this feature'
-          );
-          console.warn(
-            'scheduleTestNotification: Permission denied after request.'
-          );
-          return;
-        }
-      }
-
-      // Cancel any existing notifications
-      console.log(
-        'scheduleTestNotification: Dismissing all existing notifications...'
-      );
-      await Notifications.dismissAllNotificationsAsync();
-      console.log(
-        'scheduleTestNotification: Existing notifications dismissed.'
-      );
-
-      // Schedule the notification
-      console.log('scheduleTestNotification: Scheduling new notification...');
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Test Notification',
-          body: 'This is a notification from notification center',
-          data: { testData: 'test data' },
-        },
-        trigger: null, // Show immediately
-      });
-      console.log(
-        'scheduleTestNotification: Notification scheduled successfully.'
-      );
-
-      // Let user know notification was sent
-      if (Platform.OS === 'ios') {
-        alert(
-          "Notification sent! If you don't see it, check your notification settings."
-        );
-      }
-    } catch (error) {
-      console.error(
-        'scheduleTestNotification: Error scheduling notification:',
-        error
-      );
-      alert(
-        'Failed to send notification: ' +
-          (error instanceof Error ? error.message : 'Unknown error')
-      );
-    }
-  };
-
   const scheduleTestModeCompletionNotification = async () => {
     console.log('scheduleTestModeCompletionNotification: Function called');
     try {
@@ -414,8 +344,55 @@ export default function TimerScreen() {
     }
   };
 
+  const scheduleDelayedNotificationForMainSession = async () => {
+    console.log(
+      'scheduleDelayedNotificationForMainSession: Attempting to schedule...'
+    );
+    try {
+      let { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') {
+        console.log(
+          'scheduleDelayedNotificationForMainSession: Permission not granted, requesting...'
+        );
+        const { status: newStatus } =
+          await Notifications.requestPermissionsAsync();
+        status = newStatus;
+      }
+
+      if (status !== 'granted') {
+        console.warn(
+          'scheduleDelayedNotificationForMainSession: Permission still not granted.'
+        );
+        alert(
+          'Notification permission is required for session completion alerts. Please enable it in settings.'
+        );
+        return;
+      }
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Session Complete!',
+          body: 'Your 15-minute focus session has ended.',
+          data: { type: 'mainSessionCompleteOSTrigger' },
+          sound: 'default', // Explicitly request default sound
+        },
+        trigger: { seconds: 900 }, // 15 minutes
+      });
+      console.log(
+        'scheduleDelayedNotificationForMainSession: Notification scheduled with 15min delay via OS.'
+      );
+    } catch (error) {
+      console.error(
+        'scheduleDelayedNotificationForMainSession: Error scheduling notification:',
+        error
+      );
+      alert('Failed to schedule session completion notification.');
+    }
+  };
+
   const handleStartSession = () => {
     startSession(false);
+    scheduleDelayedNotificationForMainSession();
   };
 
   const handleTestSession = () => {
@@ -468,20 +445,6 @@ export default function TimerScreen() {
         </Text>
         {showTestModeButton && !isRunning && (
           <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={[styles.testButton, { backgroundColor: colors.surface }]}
-              onPress={scheduleTestNotification}
-            >
-              <Bell size={16} color={colors.text.secondary} />
-              <Text
-                style={[
-                  styles.testButtonText,
-                  { color: colors.text.secondary },
-                ]}
-              >
-                Test Notification
-              </Text>
-            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.testButton, { backgroundColor: colors.surface }]}
               onPress={handleTestSession}
