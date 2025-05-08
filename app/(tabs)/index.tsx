@@ -240,60 +240,31 @@ export default function TimerScreen() {
     requestNotificationPermissions();
   }, []);
 
+  useEffect(() => {
+    // Listener for notification responses (e.g., when a user taps a notification)
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const notificationData = response.notification.request.content.data;
+        if (
+          notificationData &&
+          (notificationData.type === 'mainSessionCompleteOSTrigger' ||
+            notificationData.type === 'testModeCompleteOSTrigger')
+        ) {
+          // Set timer status to completed. This will trigger the useEffect
+          // below, which shows the SessionCompletionModal.
+          setTimerStatus('completed');
+        }
+      }
+    );
+
+    return () => {
+      subscription.remove();
+    };
+  }, [setTimerStatus]);
+
   const requestNotificationPermissions = async () => {
     const { status } = await Notifications.requestPermissionsAsync();
     setNotificationPermission(status === 'granted');
-  };
-
-  const scheduleTestModeCompletionNotification = async () => {
-    console.log('scheduleTestModeCompletionNotification: Function called');
-    try {
-      const { status } = await Notifications.getPermissionsAsync();
-      console.log(
-        'scheduleTestModeCompletionNotification: Permission status -',
-        status
-      );
-
-      if (status !== 'granted') {
-        console.log(
-          'scheduleTestModeCompletionNotification: Permission not granted, requesting...'
-        );
-        const { status: newStatus } =
-          await Notifications.requestPermissionsAsync();
-        console.log(
-          'scheduleTestModeCompletionNotification: New permission status -',
-          newStatus
-        );
-        if (newStatus !== 'granted') {
-          console.warn(
-            'scheduleTestModeCompletionNotification: Permission denied after request.'
-          );
-          // Optionally alert the user, but for an automated notification,
-          // we might just log it or skip alerting.
-          return;
-        }
-      }
-
-      console.log(
-        'scheduleTestModeCompletionNotification: Scheduling test mode completion notification...'
-      );
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Test Mode Complete!',
-          body: 'Your 5-second test session has finished.',
-          data: { type: 'testModeComplete' },
-        },
-        trigger: null, // Show immediately
-      });
-      console.log(
-        'scheduleTestModeCompletionNotification: Notification scheduled successfully.'
-      );
-    } catch (error) {
-      console.error(
-        'scheduleTestModeCompletionNotification: Error scheduling notification:',
-        error
-      );
-    }
   };
 
   const scheduleDelayedNotificationForTestMode = async () => {
@@ -328,7 +299,7 @@ export default function TimerScreen() {
           title: 'Test Mode Complete (OS Timer)!',
           body: 'Your 5-second test session has finished.',
           data: { type: 'testModeCompleteOSTrigger' },
-          // sound: 'default', // You can uncomment this to explicitly request a sound
+          sound: 'default', // Ensure consistency with main session notification
         },
         trigger: { seconds: 5 }, // OS handles the 5-second delay
       });

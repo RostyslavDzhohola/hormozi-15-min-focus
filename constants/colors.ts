@@ -12,7 +12,7 @@ export const lightColors = {
   },
   primary: {
     main: '#3B82F6',
-    light: '#93C5FD',
+    light: '#FFFFFF',
     dark: '#2563EB',
     contrast: '#FFFFFF',
   },

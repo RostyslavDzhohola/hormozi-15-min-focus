@@ -6,6 +6,7 @@ import {
   startTimer as startBackgroundTask,
   stopTimer as stopBackgroundTask,
 } from '@/utils/backgroundTimer';
+import * as Notifications from 'expo-notifications';
 
 const TEST_DURATION = 5; // 5 seconds
 
@@ -191,6 +192,57 @@ export const useTimer = () => {
       console.warn('Error stopping session:', error);
     }
   }, []);
+
+  const scheduleDelayedNotificationForMainSession = async () => {
+    console.log(
+      'scheduleDelayedNotificationForMainSession: Attempting to schedule...'
+    );
+    try {
+      let { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') {
+        console.log(
+          'scheduleDelayedNotificationForMainSession: Permission not granted, requesting...'
+        );
+        const { status: newStatus } =
+          await Notifications.requestPermissionsAsync();
+        status = newStatus;
+      }
+
+      if (status !== 'granted') {
+        console.warn(
+          'scheduleDelayedNotificationForMainSession: Permission still not granted.'
+        );
+        alert(
+          'Notification permission is required for session completion alerts. Please enable it in settings.'
+        );
+        return;
+      }
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Session Complete!',
+          body: 'Your 15-minute focus session has ended.',
+          data: { type: 'mainSessionCompleteOSTrigger' },
+          sound: 'default', // Explicitly request default sound
+        },
+        trigger: { seconds: 900 }, // 15 minutes
+      });
+      console.log(
+        'scheduleDelayedNotificationForMainSession: Notification scheduled with 15min delay via OS.'
+      );
+    } catch (error) {
+      console.error(
+        'scheduleDelayedNotificationForMainSession: Error scheduling notification:',
+        error
+      );
+      alert('Failed to schedule session completion notification.');
+    }
+  };
+
+  const handleStartSession = () => {
+    startSession(false);
+    scheduleDelayedNotificationForMainSession();
+  };
 
   return {
     isRunning,

@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, { 
-  useAnimatedStyle, 
-  withSequence, 
-  withTiming, 
-  useSharedValue, 
-  withRepeat, 
-  Easing 
+import Animated, {
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+  useSharedValue,
+  withRepeat,
+  Easing,
 } from 'react-native-reanimated';
 
 type TimerDisplayProps = {
@@ -16,15 +16,23 @@ type TimerDisplayProps = {
   testMode?: boolean;
 };
 
-export function TimerDisplay({ minutes, seconds, isActive, testMode }: TimerDisplayProps) {
+export function TimerDisplay({
+  minutes,
+  seconds,
+  isActive,
+  testMode,
+}: TimerDisplayProps) {
   const scale = useSharedValue(1);
-  
+
   // Apply pulse animation when timer is about to end
   React.useEffect(() => {
     if (isActive && minutes === 0 && seconds <= 10) {
       scale.value = withRepeat(
         withSequence(
-          withTiming(1.05, { duration: 500, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.05, {
+            duration: 500,
+            easing: Easing.inOut(Easing.ease),
+          }),
           withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) })
         ),
         -1,
@@ -34,13 +42,13 @@ export function TimerDisplay({ minutes, seconds, isActive, testMode }: TimerDisp
       scale.value = withTiming(1);
     }
   }, [minutes, seconds]);
-  
+
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: scale.value }],
     };
   });
-  
+
   // Format minutes and seconds with leading zeros
   const formattedMinutes = minutes.toString().padStart(2, '0');
   const formattedSeconds = seconds.toString().padStart(2, '0');
@@ -48,7 +56,7 @@ export function TimerDisplay({ minutes, seconds, isActive, testMode }: TimerDisp
   // Show 00:00 when inactive
   const displayMinutes = isActive ? formattedMinutes : '00';
   const displaySeconds = isActive ? formattedSeconds : '00';
-  
+
   // Determine color based on remaining time
   const getTimerColor = () => {
     if (!isActive) return '#94A3B8'; // Gray color when inactive
@@ -60,7 +68,7 @@ export function TimerDisplay({ minutes, seconds, isActive, testMode }: TimerDisp
       return '#3B82F6'; // Default blue
     }
   };
-  
+
   return (
     <Animated.View style={[styles.container, animatedStyle]}>
       {testMode && (
