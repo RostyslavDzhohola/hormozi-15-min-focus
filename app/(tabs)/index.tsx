@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Play, CircleStop as StopCircle } from 'lucide-react-native';
+import { Play, CircleStop as StopCircle, Bell } from 'lucide-react-native';
+import * as Notifications from 'expo-notifications';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -22,6 +23,15 @@ import { TimerDisplay } from '@/components/TimerDisplay';
 import { LinearGradient, LinearGradientPoint } from 'expo-linear-gradient';
 import { useTheme } from '@/components/ThemeProvider';
 import { BugPlay, MessageSquareWarning } from 'lucide-react-native';
+
+// Configure notifications
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -37,6 +47,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     marginTop: 8,
     marginBottom: 4,
+    gap: 8,
   },
   title: {
     fontFamily: 'Inter-SemiBold',
@@ -174,6 +185,7 @@ export default function TimerScreen() {
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [showStopConfirmation, setShowStopConfirmation] = useState(false);
   const [showTestModeButton, setShowTestModeButton] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState(false);
   const progress = useSharedValue(0);
   const { colors } = useTheme();
 
@@ -205,8 +217,11 @@ export default function TimerScreen() {
   useEffect(() => {
     if (timerStatus === 'completed') {
       setShowCompletionModal(true);
+      if (testMode) {
+        console.log('Test mode UI timer completed, showing modal.');
+      }
     }
-  }, [timerStatus]);
+  }, [timerStatus, testMode, setShowCompletionModal]);
 
   useEffect(() => {
     if (isRunning) {
@@ -220,12 +235,192 @@ export default function TimerScreen() {
     }
   }, [remainingSeconds, isRunning, testMode, progress]);
 
+  useEffect(() => {
+    // Request notification permissions on component mount
+    requestNotificationPermissions();
+  }, []);
+
+  const requestNotificationPermissions = async () => {
+    const { status } = await Notifications.requestPermissionsAsync();
+    setNotificationPermission(status === 'granted');
+  };
+
+  const scheduleTestNotification = async () => {
+    console.log('scheduleTestNotification: Function called');
+    try {
+      // Check permission status first
+      const { status } = await Notifications.getPermissionsAsync();
+      console.log('scheduleTestNotification: Permission status -', status);
+
+      if (status !== 'granted') {
+        console.log(
+          'scheduleTestNotification: Permission not granted, requesting...'
+        );
+        // If not granted, request again
+        const { status: newStatus } =
+          await Notifications.requestPermissionsAsync();
+        console.log(
+          'scheduleTestNotification: New permission status -',
+          newStatus
+        );
+        if (newStatus !== 'granted') {
+          alert(
+            'You need to enable notifications permission to use this feature'
+          );
+          console.warn(
+            'scheduleTestNotification: Permission denied after request.'
+          );
+          return;
+        }
+      }
+
+      // Cancel any existing notifications
+      console.log(
+        'scheduleTestNotification: Dismissing all existing notifications...'
+      );
+      await Notifications.dismissAllNotificationsAsync();
+      console.log(
+        'scheduleTestNotification: Existing notifications dismissed.'
+      );
+
+      // Schedule the notification
+      console.log('scheduleTestNotification: Scheduling new notification...');
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Test Notification',
+          body: 'This is a notification from notification center',
+          data: { testData: 'test data' },
+        },
+        trigger: null, // Show immediately
+      });
+      console.log(
+        'scheduleTestNotification: Notification scheduled successfully.'
+      );
+
+      // Let user know notification was sent
+      if (Platform.OS === 'ios') {
+        alert(
+          "Notification sent! If you don't see it, check your notification settings."
+        );
+      }
+    } catch (error) {
+      console.error(
+        'scheduleTestNotification: Error scheduling notification:',
+        error
+      );
+      alert(
+        'Failed to send notification: ' +
+          (error instanceof Error ? error.message : 'Unknown error')
+      );
+    }
+  };
+
+  const scheduleTestModeCompletionNotification = async () => {
+    console.log('scheduleTestModeCompletionNotification: Function called');
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      console.log(
+        'scheduleTestModeCompletionNotification: Permission status -',
+        status
+      );
+
+      if (status !== 'granted') {
+        console.log(
+          'scheduleTestModeCompletionNotification: Permission not granted, requesting...'
+        );
+        const { status: newStatus } =
+          await Notifications.requestPermissionsAsync();
+        console.log(
+          'scheduleTestModeCompletionNotification: New permission status -',
+          newStatus
+        );
+        if (newStatus !== 'granted') {
+          console.warn(
+            'scheduleTestModeCompletionNotification: Permission denied after request.'
+          );
+          // Optionally alert the user, but for an automated notification,
+          // we might just log it or skip alerting.
+          return;
+        }
+      }
+
+      console.log(
+        'scheduleTestModeCompletionNotification: Scheduling test mode completion notification...'
+      );
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Test Mode Complete!',
+          body: 'Your 5-second test session has finished.',
+          data: { type: 'testModeComplete' },
+        },
+        trigger: null, // Show immediately
+      });
+      console.log(
+        'scheduleTestModeCompletionNotification: Notification scheduled successfully.'
+      );
+    } catch (error) {
+      console.error(
+        'scheduleTestModeCompletionNotification: Error scheduling notification:',
+        error
+      );
+    }
+  };
+
+  const scheduleDelayedNotificationForTestMode = async () => {
+    console.log(
+      'scheduleDelayedNotificationForTestMode: Attempting to schedule...'
+    );
+    try {
+      // First, ensure permissions are granted
+      let { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') {
+        console.log(
+          'scheduleDelayedNotificationForTestMode: Permission not granted, requesting...'
+        );
+        const { status: newStatus } =
+          await Notifications.requestPermissionsAsync();
+        status = newStatus; // Update status with the new permission result
+      }
+
+      if (status !== 'granted') {
+        console.warn(
+          'scheduleDelayedNotificationForTestMode: Permission still not granted after request.'
+        );
+        alert(
+          'Notification permission is required for test mode completion alerts. Please enable it in settings.'
+        );
+        return;
+      }
+
+      // Schedule the notification with a 5-second delay
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Test Mode Complete (OS Timer)!',
+          body: 'Your 5-second test session has finished.',
+          data: { type: 'testModeCompleteOSTrigger' },
+          // sound: 'default', // You can uncomment this to explicitly request a sound
+        },
+        trigger: { seconds: 5 }, // OS handles the 5-second delay
+      });
+      console.log(
+        'scheduleDelayedNotificationForTestMode: Notification scheduled with 5s delay via OS.'
+      );
+    } catch (error) {
+      console.error(
+        'scheduleDelayedNotificationForTestMode: Error scheduling notification:',
+        error
+      );
+      alert('Failed to schedule test mode completion notification.');
+    }
+  };
+
   const handleStartSession = () => {
     startSession(false);
   };
 
   const handleTestSession = () => {
     startSession(true);
+    scheduleDelayedNotificationForTestMode();
   };
 
   const confirmStopSession = () => {
@@ -273,6 +468,20 @@ export default function TimerScreen() {
         </Text>
         {showTestModeButton && !isRunning && (
           <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={[styles.testButton, { backgroundColor: colors.surface }]}
+              onPress={scheduleTestNotification}
+            >
+              <Bell size={16} color={colors.text.secondary} />
+              <Text
+                style={[
+                  styles.testButtonText,
+                  { color: colors.text.secondary },
+                ]}
+              >
+                Test Notification
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.testButton, { backgroundColor: colors.surface }]}
               onPress={handleTestSession}

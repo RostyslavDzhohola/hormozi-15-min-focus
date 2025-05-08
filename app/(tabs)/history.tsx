@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FileDown, Calendar, Plus } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,61 +31,92 @@ export default function HistoryScreen() {
   const handleDateChange = (date: Date) => {
     setSelectedDate(date);
   };
-  
+
   const handleEntrySubmit = async () => {
     await refreshEntries(); // Use the new refreshEntries function
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <LinearGradient
-        colors={colors.gradient.secondary}
+        colors={colors.gradient.secondary as any}
         style={StyleSheet.absoluteFillObject}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
-      
+
       <View style={styles.headerContainer}>
         <View style={styles.titleContainer}>
-          <Text style={[styles.title, { color: colors.text.primary }]}>Activity History</Text>
+          <Text style={[styles.title, { color: colors.text.primary }]}>
+            Activity History
+          </Text>
           <View style={styles.headerButtons}>
-            <TouchableOpacity 
-              style={[styles.iconButton, { 
-                backgroundColor: isDark ? colors.surface : colors.primary.light,
-                borderColor: colors.border.default
-              }]} 
-              onPress={() => setShowManualEntryModal(true)} 
+            <TouchableOpacity
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: isDark
+                    ? colors.surface
+                    : colors.primary.light,
+                  borderColor: colors.border.default,
+                },
+              ]}
+              onPress={() => setShowManualEntryModal(true)}
               activeOpacity={0.8}
             >
-              <Plus size={20} color={isDark ? colors.primary.light : colors.primary.main} />
+              <Plus
+                size={20}
+                color={isDark ? colors.primary.light : colors.primary.main}
+              />
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.iconButton, { 
-                backgroundColor: isDark ? colors.surface : colors.primary.light,
-                borderColor: colors.border.default
-              }]} 
-              onPress={handleExport} 
+            <TouchableOpacity
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: isDark
+                    ? colors.surface
+                    : colors.primary.light,
+                  borderColor: colors.border.default,
+                },
+              ]}
+              onPress={handleExport}
               activeOpacity={0.8}
             >
-              <FileDown size={20} color={isDark ? colors.primary.light : colors.primary.main} />
+              <FileDown
+                size={20}
+                color={isDark ? colors.primary.light : colors.primary.main}
+              />
             </TouchableOpacity>
           </View>
         </View>
       </View>
-      
-      <DaySelector selectedDate={selectedDate} onDateChange={handleDateChange} />
-      
-      <View style={[styles.todaySummary, { 
-        backgroundColor: colors.surface,
-        shadowColor: isDark ? 'rgba(0, 0, 0, 0.3)' : colors.text.primary
-      }]}>
+
+      <DaySelector
+        selectedDate={selectedDate}
+        onDateChange={handleDateChange}
+      />
+
+      <View
+        style={[
+          styles.todaySummary,
+          {
+            backgroundColor: colors.surface,
+            shadowColor: isDark ? 'rgba(0, 0, 0, 0.3)' : colors.text.primary,
+          },
+        ]}
+      >
         <View style={styles.dateContainer}>
-          <Calendar size={18} color={isDark ? colors.text.tertiary : colors.text.secondary} />
+          <Calendar
+            size={18}
+            color={isDark ? colors.text.tertiary : colors.text.secondary}
+          />
           <Text style={[styles.dateText, { color: colors.text.primary }]}>
-            {selectedDate.toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              month: 'long', 
-              day: 'numeric' 
+            {selectedDate.toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
             })}
           </Text>
         </View>
@@ -86,29 +124,28 @@ export default function HistoryScreen() {
           {entries.length} entries recorded
         </Text>
       </View>
-      
+
       {entries.length > 0 ? (
         <FlatList
           data={entries}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <EntryItem 
-              entry={item} 
-              onDelete={() => deleteEntry(item.id)}
-            />
+            <EntryItem entry={item} onDelete={() => deleteEntry(item.id)} />
           )}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
       ) : (
         <View style={styles.emptyContainer}>
-          <Text style={[styles.emptyTitle, { color: colors.text.primary }]}>No entries yet</Text>
+          <Text style={[styles.emptyTitle, { color: colors.text.primary }]}>
+            No entries yet
+          </Text>
           <Text style={[styles.emptyText, { color: colors.text.secondary }]}>
             Entries will appear here once you start tracking your activities.
           </Text>
         </View>
       )}
-      
+
       <ManualEntryModal
         visible={showManualEntryModal}
         onClose={() => setShowManualEntryModal(false)}
