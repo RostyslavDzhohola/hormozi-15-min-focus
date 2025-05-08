@@ -6,12 +6,13 @@ import { Platform } from 'react-native';
 import { useTheme } from '@/components/ThemeProvider';
 import { EntryData } from '@/types/entry';
 
-type EntryItemProps = {
+interface EntryItemProps {
   entry: EntryData;
-  onDelete: () => void;
-};
+  onDelete: (id: string) => void;
+  onEditPress: (entry: EntryData) => void;
+}
 
-export function EntryItem({ entry, onDelete }: EntryItemProps) {
+export function EntryItem({ entry, onDelete, onEditPress }: EntryItemProps) {
   const { colors, theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -19,87 +20,74 @@ export function EntryItem({ entry, onDelete }: EntryItemProps) {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    onDelete();
+    onDelete(entry.id);
   };
 
+  const displayTime = entry.timeLabel || 'N/A';
+  const displayText = entry.text || 'No description';
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.surface }]}>
-      <View
-        style={[
-          styles.timeContainer,
-          {
-            backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderRightWidth: 1,
-            borderColor: isDark ? colors.border.subtle : '#F7F9FC',
-          },
-        ]}
-      >
+    <TouchableOpacity
+      style={[styles.container, { backgroundColor: colors.surface }]}
+      onPress={() => onEditPress(entry)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.contentContainer}>
         <Text
           style={[
             styles.timeText,
-            {
-              color: isDark ? colors.primary.light : colors.primary.main,
-            },
+            { color: colors.primary?.main || colors.text.primary },
           ]}
         >
-          {entry.timeLabel}
+          {displayTime}
         </Text>
-      </View>
-
-      <View style={styles.contentContainer}>
-        <Text style={[styles.entryText, { color: colors.text.primary }]}>
-          {entry.text}
-        </Text>
-
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={handleDelete}
-          hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+        <Text
+          style={[styles.text, { color: colors.text.primary }]}
+          numberOfLines={2}
         >
-          <Trash2 size={16} color={colors.error.main} />
-        </TouchableOpacity>
+          {displayText}
+        </Text>
       </View>
-    </View>
+      <TouchableOpacity
+        onPress={handleDelete}
+        style={styles.deleteButtonContainer}
+      >
+        <Trash2 size={20} color={colors.error?.main || '#EF4444'} />
+      </TouchableOpacity>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    marginBottom: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: Platform.OS === 'ios' ? '#000' : 'transparent',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginVertical: 4,
+    borderRadius: 8,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 1,
   },
-  timeContainer: {
-    width: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
+  contentContainer: {
+    flex: 1,
+    marginRight: 8,
   },
   timeText: {
     fontFamily: 'Inter-Medium',
     fontSize: 14,
+    marginBottom: 4,
   },
-  contentContainer: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  entryText: {
+  text: {
     fontFamily: 'Inter-Regular',
-    fontSize: 15,
-    flex: 1,
-    marginRight: 8,
+    fontSize: 16,
+    lineHeight: 22,
   },
-  deleteButton: {
-    padding: 4,
+  deleteButtonContainer: {
+    padding: 8,
   },
 });

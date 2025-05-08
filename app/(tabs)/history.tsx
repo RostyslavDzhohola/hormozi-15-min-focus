@@ -16,11 +16,21 @@ import { DaySelector } from '@/components/DaySelector';
 import { useEntries } from '@/hooks/useEntries';
 import { exportEntries } from '@/utils/export';
 import { ManualEntryModal } from '@/components/ManualEntryModal';
+import { EditEntryModal } from '@/components/EditEntryModal';
+import { EntryData } from '@/types/entry';
 
 export default function HistoryScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showManualEntryModal, setShowManualEntryModal] = useState(false);
-  const { entries, deleteEntry, refreshEntries } = useEntries(selectedDate);
+  const [entryToEditForManualModal, setEntryToEditForManualModal] =
+    useState<EntryData | null>(null);
+
+  const [showEditEntryModal, setShowEditEntryModal] = useState(false);
+  const [currentEditingEntry, setCurrentEditingEntry] =
+    useState<EntryData | null>(null);
+
+  const { entries, deleteEntry, refreshEntries, updateEntryText } =
+    useEntries(selectedDate);
   const { colors, theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -32,8 +42,36 @@ export default function HistoryScreen() {
     setSelectedDate(date);
   };
 
-  const handleEntrySubmit = async () => {
-    await refreshEntries(); // Use the new refreshEntries function
+  const handleManualEntrySubmitted = async () => {
+    await refreshEntries();
+    setShowManualEntryModal(false);
+    setEntryToEditForManualModal(null);
+  };
+
+  const handleManualModalClose = () => {
+    setShowManualEntryModal(false);
+    setEntryToEditForManualModal(null);
+  };
+
+  const handleEditItemPress = (entry: EntryData) => {
+    setCurrentEditingEntry(entry);
+    setShowEditEntryModal(true);
+  };
+
+  const handleEditEntryModalSubmit = async (updatedText: string) => {
+    if (currentEditingEntry) {
+      await updateEntryText(currentEditingEntry.id, updatedText);
+      setShowEditEntryModal(false);
+      setCurrentEditingEntry(null);
+    } else {
+      console.warn('No entry was selected for editing.');
+      setShowEditEntryModal(false);
+    }
+  };
+
+  const handleEditEntryModalClose = () => {
+    setShowEditEntryModal(false);
+    setCurrentEditingEntry(null);
   };
 
   return (
@@ -130,7 +168,11 @@ export default function HistoryScreen() {
           data={entries}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <EntryItem entry={item} onDelete={() => deleteEntry(item.id)} />
+            <EntryItem
+              entry={item}
+              onDelete={() => deleteEntry(item.id)}
+              onEditPress={handleEditItemPress}
+            />
           )}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -148,10 +190,17 @@ export default function HistoryScreen() {
 
       <ManualEntryModal
         visible={showManualEntryModal}
-        onClose={() => setShowManualEntryModal(false)}
+        onClose={handleManualModalClose}
         existingEntries={entries}
-        onSubmit={refreshEntries}
+        onSubmit={handleManualEntrySubmitted}
         selectedDate={selectedDate}
+      />
+
+      <EditEntryModal
+        visible={showEditEntryModal}
+        onClose={handleEditEntryModalClose}
+        onSubmit={handleEditEntryModalSubmit}
+        entry={currentEditingEntry}
       />
     </SafeAreaView>
   );

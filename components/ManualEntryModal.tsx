@@ -70,17 +70,20 @@ export function ManualEntryModal({
   useEffect(() => {
     if (!visible) return;
 
-    const takenSlots = new Set(existingEntries.map(entry => entry.timeLabel));
+    const takenSlots = new Set(existingEntries.map((entry) => entry.timeLabel));
 
-    const filteredSlots = TIME_SLOTS.filter(slot => {
+    const filteredSlots = TIME_SLOTS.filter((slot) => {
       if (takenSlots.has(slot.value)) return false;
-      
+
       return true;
     });
 
     setAvailableTimeSlots(filteredSlots);
 
-    if (filteredSlots.length > 0 && (!selectedTime || !filteredSlots.some(s => s.value === selectedTime))) {
+    if (
+      filteredSlots.length > 0 &&
+      (!selectedTime || !filteredSlots.some((s) => s.value === selectedTime))
+    ) {
       const latestAvailable = filteredSlots[filteredSlots.length - 1].value;
       setSelectedTime(latestAvailable);
     } else if (filteredSlots.length === 0) {
@@ -100,29 +103,29 @@ export function ManualEntryModal({
 
     try {
       setError(null);
-      
+
       // Create a new date object from the selected date to avoid modifying the original
       const entryDate = new Date(selectedDate);
-      
+
       // Parse the selected time
       const [time, period] = selectedTime.split(' ');
       const [hours, minutes] = time.split(':');
       let hour = parseInt(hours);
-      
+
       // Convert to 24-hour format
       if (period === 'PM' && hour !== 12) hour += 12;
       else if (period === 'AM' && hour === 12) hour = 0;
-      
+
       // Set the correct hours and minutes on our entry date
       entryDate.setHours(hour, parseInt(minutes), 0, 0);
-      
+
       await saveEntry({
         id: Date.now().toString(),
         text: entry.trim(),
         timestamp: entryDate.toISOString(),
         timeLabel: selectedTime,
       });
-      
+
       await onSubmit();
       onClose();
     } catch (err) {
@@ -143,11 +146,13 @@ export function ManualEntryModal({
       visible={visible}
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={() => {
-        if (!showTimePicker) {
-          Keyboard.dismiss();
-        }
-      }}>
+      <TouchableWithoutFeedback
+        onPress={() => {
+          if (!showTimePicker) {
+            Keyboard.dismiss();
+          }
+        }}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.container}

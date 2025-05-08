@@ -16,7 +16,7 @@ export async function getAllEntries(): Promise<EntryData[]> {
     } else {
       const filePath = `${FileSystem.documentDirectory}${ENTRIES_KEY}.json`;
       const fileExists = await FileSystem.getInfoAsync(filePath);
-      
+
       if (fileExists.exists) {
         const content = await FileSystem.readAsStringAsync(filePath);
         return JSON.parse(content);
@@ -48,49 +48,82 @@ export async function saveEntry(entry: EntryData): Promise<void> {
   const entries = await getAllEntries();
   entries.push(entry);
   await saveAllEntries(entries);
-  
+
   // Dispatch storage event for cross-tab synchronization
   if (Platform.OS === 'web') {
-    window.dispatchEvent(new StorageEvent('storage', {
-      key: ENTRIES_KEY,
-      newValue: JSON.stringify(entries),
-    }));
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: ENTRIES_KEY,
+        newValue: JSON.stringify(entries),
+      })
+    );
   }
 }
 
 // Get entries for a specific date
 export async function getEntriesForDate(date: Date): Promise<EntryData[]> {
   const entries = await getAllEntries();
-  
+
   // Set time to beginning of day
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
-  
+
   // Set time to end of day
   const endOfDay = new Date(date);
   endOfDay.setHours(23, 59, 59, 999);
-  
+
   // Filter entries for the selected date and sort by timestamp (newest first)
   return entries
-    .filter(entry => {
+    .filter((entry) => {
       const entryDate = new Date(entry.timestamp);
       return entryDate >= startOfDay && entryDate <= endOfDay;
     })
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    .sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
 }
 
 // Delete an entry by ID
 export async function deleteEntryById(id: string): Promise<void> {
   const entries = await getAllEntries();
-  const updatedEntries = entries.filter(entry => entry.id !== id);
+  const updatedEntries = entries.filter((entry) => entry.id !== id);
   await saveAllEntries(updatedEntries);
-  
+
   // Dispatch storage event for cross-tab synchronization
   if (Platform.OS === 'web') {
-    window.dispatchEvent(new StorageEvent('storage', {
-      key: ENTRIES_KEY,
-      newValue: JSON.stringify(updatedEntries),
-    }));
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: ENTRIES_KEY,
+        newValue: JSON.stringify(updatedEntries),
+      })
+    );
+  }
+}
+
+// Update an entry's text by ID
+export async function updateEntryTextInStorage(
+  id: string,
+  newText: string
+): Promise<void> {
+  const entries = await getAllEntries();
+  const entryIndex = entries.findIndex((entry) => entry.id === id);
+
+  if (entryIndex !== -1) {
+    entries[entryIndex].text = newText;
+    await saveAllEntries(entries);
+
+    // Dispatch storage event for cross-tab synchronization
+    if (Platform.OS === 'web') {
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: ENTRIES_KEY, // Assuming ENTRIES_KEY is accessible here (it is defined at the top of the file)
+          newValue: JSON.stringify(entries),
+        })
+      );
+    }
+  } else {
+    console.warn(`Entry with id ${id} not found, cannot update.`);
   }
 }
 
@@ -103,7 +136,7 @@ export async function getSettings(): Promise<any> {
     } else {
       const filePath = `${FileSystem.documentDirectory}${SETTINGS_KEY}.json`;
       const fileExists = await FileSystem.getInfoAsync(filePath);
-      
+
       if (fileExists.exists) {
         const content = await FileSystem.readAsStringAsync(filePath);
         return JSON.parse(content);
@@ -141,19 +174,19 @@ export async function clearAllData(): Promise<void> {
       const entriesPath = `${FileSystem.documentDirectory}${ENTRIES_KEY}.json`;
       const settingsPath = `${FileSystem.documentDirectory}${SETTINGS_KEY}.json`;
       const sessionPath = `${FileSystem.documentDirectory}${SESSION_KEY}.json`;
-      
+
       const entriesExist = await FileSystem.getInfoAsync(entriesPath);
       const settingsExist = await FileSystem.getInfoAsync(settingsPath);
       const sessionExist = await FileSystem.getInfoAsync(sessionPath);
-      
+
       if (entriesExist.exists) {
         await FileSystem.deleteAsync(entriesPath);
       }
-      
+
       if (settingsExist.exists) {
         await FileSystem.deleteAsync(settingsPath);
       }
-      
+
       if (sessionExist.exists) {
         await FileSystem.deleteAsync(sessionPath);
       }
@@ -172,7 +205,7 @@ export async function getSessionState(): Promise<SessionState | null> {
     } else {
       const filePath = `${FileSystem.documentDirectory}${SESSION_KEY}.json`;
       const fileExists = await FileSystem.getInfoAsync(filePath);
-      
+
       if (fileExists.exists) {
         const content = await FileSystem.readAsStringAsync(filePath);
         return JSON.parse(content);

@@ -16,6 +16,7 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
+import { useNavigation } from '@react-navigation/native';
 import { useTimer } from '@/hooks/useTimer';
 import { SessionCompletionModal } from '@/components/SessionCompletionModal';
 import { StopSessionModal } from '@/components/StopSessionModal';
@@ -188,6 +189,7 @@ export default function TimerScreen() {
   const [notificationPermission, setNotificationPermission] = useState(false);
   const progress = useSharedValue(0);
   const { colors } = useTheme();
+  const navigation = useNavigation();
 
   const {
     currentTime,
@@ -216,12 +218,14 @@ export default function TimerScreen() {
 
   useEffect(() => {
     if (timerStatus === 'completed') {
+      // @ts-expect-error navigation.navigate can accept a string
+      navigation.navigate('index'); // Ensure user is on the timer screen
       setShowCompletionModal(true);
       if (testMode) {
         console.log('Test mode UI timer completed, showing modal.');
       }
     }
-  }, [timerStatus, testMode, setShowCompletionModal]);
+  }, [timerStatus, testMode, setShowCompletionModal, navigation]);
 
   useEffect(() => {
     if (isRunning) {
@@ -250,9 +254,9 @@ export default function TimerScreen() {
           (notificationData.type === 'mainSessionCompleteOSTrigger' ||
             notificationData.type === 'testModeCompleteOSTrigger')
         ) {
-          // Set timer status to completed. This will trigger the useEffect
-          // below, which shows the SessionCompletionModal.
-          setTimerStatus('completed');
+          // @ts-expect-error navigation.navigate can accept a string
+          navigation.navigate('index'); // Navigate to the timer screen first
+          setTimerStatus('completed'); // Then set status to trigger modal via the other useEffect
         }
       }
     );
@@ -260,7 +264,7 @@ export default function TimerScreen() {
     return () => {
       subscription.remove();
     };
-  }, [setTimerStatus]);
+  }, [setTimerStatus, navigation]);
 
   const requestNotificationPermissions = async () => {
     const { status } = await Notifications.requestPermissionsAsync();
