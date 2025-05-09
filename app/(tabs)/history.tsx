@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FileDown, Calendar, Plus } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '@/components/ThemeProvider';
 import { EntryItem } from '@/components/EntryItem';
 import { DaySelector } from '@/components/DaySelector';
@@ -33,6 +34,21 @@ export default function HistoryScreen() {
     useEntries(selectedDate);
   const { colors, theme } = useTheme();
   const isDark = theme === 'dark';
+
+  useFocusEffect(
+    useCallback(() => {
+      console.log(
+        '[HistoryScreen] Screen focused. Refreshing entries for date:',
+        selectedDate.toISOString().split('T')[0]
+      );
+      refreshEntries();
+
+      return () => {
+        // Optional: cleanup if needed when the screen loses focus
+        // console.log('[HistoryScreen] Screen unfocused.');
+      };
+    }, [refreshEntries, selectedDate])
+  );
 
   const handleExport = async () => {
     await exportEntries(selectedDate);

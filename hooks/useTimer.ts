@@ -21,18 +21,30 @@ export const useTimer = () => {
     currentEntry: null,
   });
 
-  const updateCurrentTimeDisplay = useCallback(() => {
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const hour12 = hours % 12 || 12;
-    const formattedMinutes = minutes.toString().padStart(2, '0');
-    setCurrentTime(`${hour12}:${formattedMinutes} ${ampm}`);
-  }, []);
+  const calculateAndSetRoundedTime = useCallback(
+    (dateToRound: Date) => {
+      const roundedDate = new Date(dateToRound);
+      const minutes = roundedDate.getMinutes();
+      roundedDate.setMinutes(Math.floor(minutes / 15) * 15, 0, 0); // Round down and clear seconds/ms
+
+      const hours = roundedDate.getHours();
+      const roundedMinutes = roundedDate.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const hour12 = hours % 12 || 12;
+      const formattedMinutes = roundedMinutes.toString().padStart(2, '0');
+      const newCurrentTime = `${hour12}:${formattedMinutes} ${ampm}`;
+      setCurrentTime(newCurrentTime);
+      console.log(
+        `[useTimer] currentTime set to: ${newCurrentTime} (based on date ${dateToRound.toLocaleTimeString()})`
+      );
+    },
+    [setCurrentTime]
+  );
 
   const resetTimerToNextInterval = useCallback(() => {
     const now = new Date();
+    calculateAndSetRoundedTime(now); // Set currentTime to the start of the current 15-min block
+
     const currentMinutes = now.getMinutes();
     const currentSeconds = now.getSeconds();
 
@@ -42,22 +54,30 @@ export const useTimer = () => {
     let secondsLeft = 15 * 60 - secondsElapsedInCurrentBlock;
 
     if (secondsLeft === 0 && secondsElapsedInCurrentBlock !== 0) {
-    } else if (
-      secondsLeft === 15 * 60 ||
-      (secondsLeft === 0 && secondsElapsedInCurrentBlock === 0)
-    ) {
+      // This means we are at the exact end of a block (e.g. 10:15:00).
+      // The timer should run for a full new 15-minute block.
+      secondsLeft = 15 * 60;
+    } else if (secondsLeft === 15 * 60 && secondsElapsedInCurrentBlock === 0) {
+      // This means we are at the exact start of a block (e.g. 10:00:00).
+      // secondsLeft is already 15 * 60, which is correct.
+    } else if (secondsLeft <= 0 || secondsLeft > 15 * 60) {
+      // Fallback for any unexpected calculation, ensures timer is for a full 15-min block.
+      console.warn(
+        `[useTimer] resetTimerToNextInterval: Unusual secondsLeft (${secondsLeft}), resetting to 15 minutes.`
+      );
       secondsLeft = 15 * 60;
     }
 
     setRemainingSeconds(secondsLeft);
-    updateCurrentTimeDisplay();
     console.log(
-      `[useTimer] Timer reset to ${secondsLeft} seconds for the next interval.`
+      `[useTimer] Timer reset. Targeting end of current 15-min block. Remaining: ${secondsLeft} seconds.`
     );
     return secondsLeft;
-  }, [updateCurrentTimeDisplay]);
+  }, [calculateAndSetRoundedTime, setRemainingSeconds]);
 
   useEffect(() => {
+    calculateAndSetRoundedTime(new Date()); // Initial time display
+
     const loadSession = async () => {
       const savedSession = await getSessionState();
       if (savedSession) {
@@ -70,7 +90,7 @@ export const useTimer = () => {
       }
     };
     loadSession();
-  }, []);
+  }, [calculateAndSetRoundedTime]);
 
   useEffect(() => {
     if (isRunning) {
@@ -153,7 +173,6 @@ export const useTimer = () => {
     (isTest: boolean = false) => {
       console.log(`[useTimer] Starting session (isTest: ${isTest})`);
       setTestMode(isTest);
-      updateCurrentTimeDisplay();
       setIsRunning(true);
       setTimerStatus('running');
 
@@ -166,6 +185,7 @@ export const useTimer = () => {
       saveSessionState(sessionRef.current);
 
       if (isTest) {
+        calculateAndSetRoundedTime(new Date()); // Set currentTime for test mode
         setRemainingSeconds(TEST_DURATION);
         return TEST_DURATION;
       } else {
@@ -173,7 +193,14 @@ export const useTimer = () => {
         return initialSeconds;
       }
     },
-    [resetTimerToNextInterval, updateCurrentTimeDisplay]
+    [
+      calculateAndSetRoundedTime,
+      resetTimerToNextInterval,
+      setIsRunning,
+      setTimerStatus,
+      setTestMode,
+      setRemainingSeconds,
+    ]
   );
 
   const stopSession = useCallback(async () => {
