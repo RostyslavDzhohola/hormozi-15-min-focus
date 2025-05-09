@@ -16,7 +16,7 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTimer } from '@/hooks/useTimer';
 import { SessionCompletionModal } from '@/components/SessionCompletionModal';
 import { StopSessionModal } from '@/components/StopSessionModal';
@@ -24,6 +24,7 @@ import { TimerDisplay } from '@/components/TimerDisplay';
 import { LinearGradient, LinearGradientPoint } from 'expo-linear-gradient';
 import { useTheme } from '@/components/ThemeProvider';
 import { BugPlay, MessageSquareWarning } from 'lucide-react-native';
+import { saveEntry } from '@/utils/storage';
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -190,17 +191,20 @@ export default function TimerScreen() {
   const progress = useSharedValue(0);
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const route = useRoute();
 
   const {
     currentTime,
     startSession,
     stopSession,
     isRunning,
+    setIsRunning,
     remainingSeconds,
     timerStatus,
     setTimerStatus,
     testMode,
     checkTimeAndTriggerCompletion,
+    resetTimerToNextInterval,
   } = useTimer();
 
   useEffect(() => {
@@ -211,21 +215,20 @@ export default function TimerScreen() {
   }, []);
 
   useEffect(() => {
-    if (isRunning) {
+    if (isRunning && remainingSeconds === 0) {
+      console.log(
+        '[index.tsx] Timer naturally reached 0, calling checkTimeAndTriggerCompletion.'
+      );
       checkTimeAndTriggerCompletion();
     }
-  }, [isRunning, remainingSeconds, checkTimeAndTriggerCompletion, testMode]);
+  }, [isRunning, remainingSeconds, checkTimeAndTriggerCompletion]);
 
   useEffect(() => {
     if (timerStatus === 'completed') {
-      // @ts-expect-error navigation.navigate can accept a string
-      navigation.navigate('index'); // Ensure user is on the timer screen
+      console.log("[index.tsx] timerStatus is 'completed', showing modal.");
       setShowCompletionModal(true);
-      if (testMode) {
-        console.log('Test mode UI timer completed, showing modal.');
-      }
     }
-  }, [timerStatus, testMode, setShowCompletionModal, navigation]);
+  }, [timerStatus]);
 
   useEffect(() => {
     if (isRunning) {
@@ -243,16 +246,28 @@ export default function TimerScreen() {
     requestNotificationPermissions();
   }, []);
 
+  const handleProceedToNextBlock = useCallback(() => {
+    console.log('[index.tsx] Proceeding to next block (main session).');
+    if (!testMode) {
+      resetTimerToNextInterval();
+      setIsRunning(true);
+      setTimerStatus('running');
+      scheduleNextBlockReminder();
+    }
+  }, [testMode, resetTimerToNextInterval, setIsRunning, setTimerStatus]);
+
   const handleNotificationInteraction = useCallback(
     (response: Notifications.NotificationResponse | null) => {
       if (!response) {
-        console.log('handleNotificationInteraction: No response provided.');
+        console.log(
+          '[index.tsx] handleNotificationInteraction: No response provided.'
+        );
         return;
       }
-
-      const notificationData = response.notification.request.content.data;
+      const notification = response.notification;
+      const notificationData = notification.request.content.data;
       console.log(
-        'handleNotificationInteraction: Received response with data:',
+        '[index.tsx] handleNotificationInteraction: Received response with data:',
         notificationData
       );
 
@@ -262,48 +277,69 @@ export default function TimerScreen() {
           notificationData.type === 'testModeCompleteOSTrigger')
       ) {
         console.log(
-          `handleNotificationInteraction: Matched type ${notificationData.type}. Navigating and setting status.`
+          `[index.tsx] handleNotificationInteraction: Matched type ${notificationData.type}. Stopping timer, setting status to completed, and showing modal via route param.`
         );
-        // @ts-expect-error navigation.navigate can accept a string
-        navigation.navigate('index'); // Ensure user is on the timer screen
-        setTimerStatus('completed'); // This will trigger the modal via another useEffect
+        setIsRunning(false);
+        setTimerStatus('completed');
+        // Navigate to ensure the screen is focused and trigger modal via route param as a fallback/primary mechanism
+        // @ts-expect-error navigation.navigate can accept various signatures
+        navigation.navigate('index', {
+          action: 'showCompletionModalOnNotification',
+        });
       } else {
         console.log(
-          'handleNotificationInteraction: Notification data type did not match or no data.'
+          '[index.tsx] handleNotificationInteraction: Notification data type did not match or no data.'
         );
       }
     },
-    [navigation, setTimerStatus]
-  ); // Dependencies for useCallback
+    [navigation, setIsRunning, setTimerStatus]
+  );
 
   useEffect(() => {
-    // Check if the app was opened by a notification
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (response) {
         console.log(
-          'App opened by notification, handling initial response:',
+          '[index.tsx] App opened by notification, handling initial response:',
           response.notification.request.content.data?.type
         );
         handleNotificationInteraction(response);
       }
     });
-
-    // Listen for further notification interactions while the app is running
     const subscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         console.log(
-          'Notification response received while app is running, handling subsequent response:',
+          '[index.tsx] Notification response received while app is running, handling subsequent response:',
           response.notification.request.content.data?.type
         );
         handleNotificationInteraction(response);
       }
     );
-
     return () => {
-      console.log('Cleaning up notification listeners.');
+      console.log('[index.tsx] Cleaning up notification listeners.');
       subscription.remove();
     };
-  }, [handleNotificationInteraction]); // useEffect dependency is the memoized handler
+  }, [handleNotificationInteraction]);
+
+  useEffect(() => {
+    const params = route.params as { action?: string } | undefined;
+    if (params?.action === 'showCompletionModalOnNotification') {
+      console.log(
+        "[index.tsx] useEffect[route.params.action]: Detected 'showCompletionModalOnNotification' action param."
+      );
+      // Ensure timer is stopped and status is completed before showing modal
+      setIsRunning(false);
+      setTimerStatus('completed'); // This will trigger the useEffect[timerStatus] to show modal
+      // setShowCompletionModal(true); // Direct call, or rely on useEffect[timerStatus]
+      // @ts-expect-error navigation.setParams expects params of the current route.
+      navigation.setParams({ action: null });
+    }
+  }, [
+    route.params,
+    navigation,
+    setIsRunning,
+    setTimerStatus,
+    setShowCompletionModal,
+  ]);
 
   const requestNotificationPermissions = async () => {
     const { status } = await Notifications.requestPermissionsAsync();
@@ -312,7 +348,7 @@ export default function TimerScreen() {
 
   const scheduleDelayedNotificationForTestMode = async (seconds: number) => {
     console.log(
-      `scheduleDelayedNotificationForTestMode: Attempting to schedule with ${seconds}s delay...`
+      `[index.tsx] scheduleDelayedNotificationForTestMode: Attempting with ${seconds}s delay...`
     );
     try {
       let { status } = await Notifications.getPermissionsAsync();
@@ -323,7 +359,7 @@ export default function TimerScreen() {
       }
       if (status !== 'granted') {
         console.warn(
-          'scheduleDelayedNotificationForTestMode: Permission still not granted.'
+          '[index.tsx] scheduleDelayedNotificationForTestMode: Permission still not granted.'
         );
         alert(
           'Notification permission is required for test mode. Please enable it.'
@@ -340,11 +376,11 @@ export default function TimerScreen() {
         trigger: { seconds: seconds },
       });
       console.log(
-        `scheduleDelayedNotificationForTestMode: Notification scheduled with ${seconds}s delay via OS.`
+        `[index.tsx] scheduleDelayedNotificationForTestMode: Notification scheduled with ${seconds}s delay via OS.`
       );
     } catch (error) {
       console.error(
-        'scheduleDelayedNotificationForTestMode: Error scheduling notification:',
+        '[index.tsx] scheduleDelayedNotificationForTestMode: Error scheduling notification:',
         error
       );
       alert('Failed to schedule test mode completion notification.');
@@ -353,13 +389,13 @@ export default function TimerScreen() {
 
   const scheduleNextBlockReminder = async () => {
     console.log(
-      'scheduleNextBlockReminder: Attempting to schedule next reminder...'
+      '[index.tsx] scheduleNextBlockReminder: Attempting to schedule next reminder...'
     );
     try {
       let { status } = await Notifications.getPermissionsAsync();
       if (status !== 'granted') {
         console.log(
-          'scheduleNextBlockReminder: Permission not granted, requesting...'
+          '[index.tsx] scheduleNextBlockReminder: Permission not granted, requesting...'
         );
         const { status: newStatus } =
           await Notifications.requestPermissionsAsync();
@@ -368,7 +404,7 @@ export default function TimerScreen() {
 
       if (status !== 'granted') {
         console.warn(
-          'scheduleNextBlockReminder: Permission still not granted.'
+          '[index.tsx] scheduleNextBlockReminder: Permission still not granted.'
         );
         alert(
           'Notification permission is required for session reminders. Please enable it in settings.'
@@ -376,41 +412,34 @@ export default function TimerScreen() {
         return;
       }
 
-      // Cancel all existing notifications to ensure only one is scheduled for the main session
       await Notifications.cancelAllScheduledNotificationsAsync();
       console.log(
-        'scheduleNextBlockReminder: Cancelled all previously scheduled notifications.'
+        '[index.tsx] scheduleNextBlockReminder: Cancelled all previously scheduled notifications.'
       );
 
       const now = new Date();
       let notificationDate = new Date(now);
-      notificationDate.setSeconds(0, 0); // Zero out seconds and milliseconds
+      notificationDate.setSeconds(0, 0);
 
       const currentMinutes = now.getMinutes();
       const minutesPastLastQuarter = currentMinutes % 15;
 
-      // Calculate next 15-minute slot
       if (
         minutesPastLastQuarter === 0 &&
         now.getSeconds() === 0 &&
         now.getMilliseconds() === 0
       ) {
-        // If exactly on a quarter hour (e.g., 12:00:00), the next reminder is 15 mins from now.
         notificationDate.setMinutes(currentMinutes + 15);
       } else {
-        // Otherwise, it's the next upcoming quarter hour mark.
         notificationDate.setMinutes(
           currentMinutes - minutesPastLastQuarter + 15
         );
       }
 
-      // Ensure we are not scheduling for a time in the past (should be rare with this logic but good for safety)
       if (notificationDate.getTime() <= Date.now()) {
         console.log(
-          `scheduleNextBlockReminder: Calculated notification time is in the past (${notificationDate.toLocaleString()}), adjusting to next valid slot.`
+          `[index.tsx] scheduleNextBlockReminder: Calculated notification time is in the past (${notificationDate.toLocaleString()}), adjusting.`
         );
-        // If it ended up in the past, it means we likely just crossed a 15-min boundary during calculation.
-        // Add another 15 minutes.
         notificationDate.setMinutes(notificationDate.getMinutes() + 15);
       }
 
@@ -427,11 +456,11 @@ export default function TimerScreen() {
         trigger: { date: notificationDate },
       });
       console.log(
-        `scheduleNextBlockReminder: Successfully scheduled reminder for: ${notificationDate.toLocaleString()}`
+        `[index.tsx] scheduleNextBlockReminder: Successfully scheduled reminder for: ${notificationDate.toLocaleString()}`
       );
     } catch (error) {
       console.error(
-        'scheduleNextBlockReminder: Error scheduling reminder:',
+        '[index.tsx] scheduleNextBlockReminder: Error scheduling reminder:',
         error
       );
       alert('Failed to schedule session reminder.');
@@ -439,18 +468,20 @@ export default function TimerScreen() {
   };
 
   const handleStartSession = () => {
+    console.log('[index.tsx] Handling Start Session (main).');
     startSession(false);
     scheduleNextBlockReminder();
   };
 
   const handleTestSession = () => {
+    console.log('[index.tsx] Handling Start Session (test).');
     const initialTestSeconds = startSession(true);
     if (typeof initialTestSeconds === 'number') {
       scheduleDelayedNotificationForTestMode(initialTestSeconds);
     } else {
       scheduleDelayedNotificationForTestMode(5);
       console.warn(
-        'handleTestSession: initialTestSeconds from useTimer was not a number, defaulting to 5s for notification.'
+        '[index.tsx] handleTestSession: initialTestSeconds from useTimer was not a number, defaulting to 5s for notification.'
       );
     }
   };
@@ -460,30 +491,42 @@ export default function TimerScreen() {
   };
 
   const handleStopConfirmed = async () => {
+    console.log('[index.tsx] Handling Stop Confirmed.');
     stopSession();
     try {
       await Notifications.cancelAllScheduledNotificationsAsync();
       console.log(
-        'handleStopConfirmed: All scheduled notifications cancelled.'
+        '[index.tsx] handleStopConfirmed: All scheduled notifications cancelled.'
       );
     } catch (error) {
       console.error(
-        'handleStopConfirmed: Error cancelling notifications:',
+        '[index.tsx] handleStopConfirmed: Error cancelling notifications:',
         error
       );
     }
     setShowStopConfirmation(false);
   };
 
-  const handleCompletionSubmit = () => {
+  const handleCompletionSubmit = (entryText?: string) => {
+    console.log('[index.tsx] Handling Completion Submit.');
+    if (entryText && entryText.trim().length > 0 && !testMode) {
+      saveEntry({
+        id: Date.now().toString(),
+        text: entryText.trim(),
+        timestamp: new Date().toISOString(),
+        timeLabel: currentTime,
+      });
+      console.log(
+        '[index.tsx] Entry saved for main session:',
+        entryText.trim()
+      );
+    }
     setShowCompletionModal(false);
     if (!testMode) {
-      // For main sessions, reschedule for the next block
-      scheduleNextBlockReminder();
-      setTimerStatus('running'); // Reflect that the timer is active for the next block
+      handleProceedToNextBlock();
     } else {
-      // For test sessions, go to idle
       setTimerStatus('idle');
+      setIsRunning(false);
     }
   };
 
@@ -584,7 +627,7 @@ export default function TimerScreen() {
       </View>
 
       <View style={styles.controlsContainer}>
-        {!isRunning ? (
+        {!isRunning && timerStatus !== 'completed' ? (
           <TouchableOpacity
             style={[
               styles.startButton,
@@ -603,7 +646,7 @@ export default function TimerScreen() {
               Start Session
             </Text>
           </TouchableOpacity>
-        ) : (
+        ) : isRunning ? (
           <TouchableOpacity
             style={[
               styles.stopButton,
@@ -620,7 +663,7 @@ export default function TimerScreen() {
               Stop Session
             </Text>
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
 
       <View style={styles.statusContainer}>
@@ -628,6 +671,10 @@ export default function TimerScreen() {
           <Text style={[styles.statusText, { color: colors.text.secondary }]}>
             Session active • Next entry in {Math.floor(remainingSeconds / 60)}:
             {(remainingSeconds % 60).toString().padStart(2, '0')}
+          </Text>
+        ) : timerStatus === 'completed' ? (
+          <Text style={[styles.statusText, { color: colors.text.secondary }]}>
+            Session complete! Please make your entry.
           </Text>
         ) : (
           <Text style={[styles.statusText, { color: colors.text.secondary }]}>
@@ -639,8 +686,14 @@ export default function TimerScreen() {
       <SessionCompletionModal
         visible={showCompletionModal}
         onClose={() => {
+          console.log('[index.tsx] SessionCompletionModal onClose (Skipped).');
           setShowCompletionModal(false);
-          stopSession();
+          if (!testMode) {
+            handleProceedToNextBlock();
+          } else {
+            setTimerStatus('idle');
+            setIsRunning(false);
+          }
         }}
         onSubmit={handleCompletionSubmit}
         currentTime={currentTime}

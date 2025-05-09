@@ -103,4 +103,6 @@ alwaysApply: true
   - Use Expo's official documentation for setting up and configuring your projects: https://docs.expo.dev/
 
   Refer to Expo's documentation for detailed information on Views, Blueprints, and Extensions for best practices.
+
+  Make sure before trying to install any packages to check first package.json to see if that module is available only after that attempt to add or remove any modules and dependencies.
     

@@ -51,6 +51,9 @@ export const useTimer = () => {
 
     setRemainingSeconds(secondsLeft);
     updateCurrentTimeDisplay();
+    console.log(
+      `[useTimer] Timer reset to ${secondsLeft} seconds for the next interval.`
+    );
     return secondsLeft;
   }, [updateCurrentTimeDisplay]);
 
@@ -60,15 +63,14 @@ export const useTimer = () => {
       if (savedSession) {
         sessionRef.current = savedSession;
         if (savedSession.isActive && savedSession.startTime) {
-          setIsRunning(true);
           lastUpdateRef.current = new Date(savedSession.startTime).getTime();
           setTestMode(false);
-          resetTimerToNextInterval();
+          console.log('[useTimer] Loaded active session from storage.');
         }
       }
     };
     loadSession();
-  }, [resetTimerToNextInterval]);
+  }, []);
 
   useEffect(() => {
     if (isRunning) {
@@ -95,17 +97,28 @@ export const useTimer = () => {
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       const now = Date.now();
-
       if (sessionRef.current.isActive) {
         if (nextAppState === 'active') {
           console.log('[useTimer] App became active. Session is active.');
           const elapsedMs = now - lastUpdateRef.current;
           const elapsedSeconds = Math.floor(elapsedMs / 1000);
 
-          if (testMode) {
+          if (timerStatus === 'completed' || timerStatus === 'idle') {
+            console.log(
+              `[useTimer] App active, but timerStatus is ${timerStatus}. No automatic second adjustment for active timer.`
+            );
+          } else if (testMode) {
             setRemainingSeconds((prev) => Math.max(0, prev - elapsedSeconds));
           } else {
-            resetTimerToNextInterval();
+            const newRemaining = remainingSeconds - elapsedSeconds;
+            if (newRemaining <= 0) {
+              setRemainingSeconds(0);
+              console.log(
+                '[useTimer] Main session block likely completed while app was backgrounded.'
+              );
+            } else {
+              setRemainingSeconds(newRemaining);
+            }
           }
           lastUpdateRef.current = now;
         } else if (nextAppState.match(/inactive|background/)) {
@@ -123,29 +136,26 @@ export const useTimer = () => {
     return () => {
       subscription.remove();
     };
-  }, [testMode, resetTimerToNextInterval]);
+  }, [testMode, isRunning, timerStatus, remainingSeconds]);
 
   const checkTimeAndTriggerCompletion = useCallback(() => {
-    if (remainingSeconds > 0) return false;
+    if (remainingSeconds > 0 || isRunning === false) return false;
 
+    console.log(
+      '[useTimer] checkTimeAndTriggerCompletion: Time is up! Setting to completed and stopping timer.'
+    );
     setTimerStatus('completed');
-
-    if (testMode) {
-      setIsRunning(false);
-    } else {
-      resetTimerToNextInterval();
-    }
+    setIsRunning(false);
     return true;
-  }, [remainingSeconds, timerStatus, testMode, resetTimerToNextInterval]);
+  }, [remainingSeconds, isRunning, timerStatus]);
 
   const startSession = useCallback(
     (isTest: boolean = false) => {
-      setIsRunning(true);
-      startTimeRef.current = Date.now();
-      lastUpdateRef.current = Date.now();
-      setTimerStatus('running');
+      console.log(`[useTimer] Starting session (isTest: ${isTest})`);
       setTestMode(isTest);
       updateCurrentTimeDisplay();
+      setIsRunning(true);
+      setTimerStatus('running');
 
       const sessionStartTime = new Date().toISOString();
       sessionRef.current = {
@@ -167,8 +177,10 @@ export const useTimer = () => {
   );
 
   const stopSession = useCallback(async () => {
+    console.log('[useTimer] Stopping session.');
     setIsRunning(false);
     setTimerStatus('idle');
+    setRemainingSeconds(0);
 
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -183,20 +195,24 @@ export const useTimer = () => {
 
     try {
       await saveSessionState(sessionRef.current);
+      console.log('[useTimer] Session state saved after stopping.');
     } catch (error) {
-      console.warn('Error stopping session:', error);
+      console.warn('[useTimer] Error stopping session:', error);
     }
   }, []);
 
   return {
     isRunning,
+    setIsRunning,
     remainingSeconds,
+    setRemainingSeconds,
     currentTime,
     timerStatus,
+    setTimerStatus,
     testMode,
     startSession,
     stopSession,
     checkTimeAndTriggerCompletion,
-    setTimerStatus,
+    resetTimerToNextInterval,
   };
 };
