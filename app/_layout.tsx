@@ -13,6 +13,7 @@ import { SplashScreen } from 'expo-router';
 import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SystemUI from 'expo-system-ui';
+import { SessionCompletionModalProvider } from '@/components/SessionCompletionModalProvider';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -49,23 +50,25 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider initialTheme={systemColorScheme ?? 'light'}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: {
-              backgroundColor:
-                systemColorScheme === 'dark' ? '#1E293B' : '#F9FAFB',
-            },
-            animation:
-              Platform.OS === 'android' ? 'fade_from_bottom' : 'default',
-          }}
-        >
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
-      </GestureHandlerRootView>
+      <SessionCompletionModalProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: {
+                backgroundColor:
+                  systemColorScheme === 'dark' ? '#1E293B' : '#F9FAFB',
+              },
+              animation:
+                Platform.OS === 'android' ? 'fade_from_bottom' : 'default',
+            }}
+          >
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+          <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+        </GestureHandlerRootView>
+      </SessionCompletionModalProvider>
     </ThemeProvider>
   );
 }

@@ -18,7 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTimer } from '@/hooks/useTimer';
-import { SessionCompletionModal } from '@/components/SessionCompletionModal';
+import { useSessionCompletionModal } from '@/components/SessionCompletionModalProvider';
 import { StopSessionModal } from '@/components/StopSessionModal';
 import { TimerDisplay } from '@/components/TimerDisplay';
 import { LinearGradient, LinearGradientPoint } from 'expo-linear-gradient';
@@ -184,7 +184,6 @@ const styles = StyleSheet.create({
 });
 
 export default function TimerScreen() {
-  const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [showStopConfirmation, setShowStopConfirmation] = useState(false);
   const [showTestModeButton, setShowTestModeButton] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState(false);
@@ -192,6 +191,7 @@ export default function TimerScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const route = useRoute();
+  const { show: showSessionCompletionModal } = useSessionCompletionModal();
 
   const {
     currentTime,
@@ -225,10 +225,15 @@ export default function TimerScreen() {
 
   useEffect(() => {
     if (timerStatus === 'completed') {
-      console.log("[index.tsx] timerStatus is 'completed', showing modal.");
-      setShowCompletionModal(true);
+      console.log(
+        "[index.tsx] timerStatus is 'completed', showing modal via context."
+      );
+      showSessionCompletionModal({
+        currentTime,
+        onSubmitCallback: handleCompletionSubmit,
+      });
     }
-  }, [timerStatus]);
+  }, [timerStatus, currentTime, showSessionCompletionModal]);
 
   useEffect(() => {
     if (isRunning) {
@@ -338,7 +343,7 @@ export default function TimerScreen() {
     navigation,
     setIsRunning,
     setTimerStatus,
-    setShowCompletionModal,
+    showSessionCompletionModal,
   ]);
 
   const requestNotificationPermissions = async () => {
@@ -507,28 +512,37 @@ export default function TimerScreen() {
     setShowStopConfirmation(false);
   };
 
-  const handleCompletionSubmit = (entryText?: string) => {
-    console.log('[index.tsx] Handling Completion Submit.');
-    if (entryText && entryText.trim().length > 0 && !testMode) {
-      saveEntry({
-        id: Date.now().toString(),
-        text: entryText.trim(),
-        timestamp: new Date().toISOString(),
-        timeLabel: currentTime,
-      });
-      console.log(
-        '[index.tsx] Entry saved for main session:',
-        entryText.trim()
-      );
-    }
-    setShowCompletionModal(false);
-    if (!testMode) {
-      handleProceedToNextBlock();
-    } else {
-      setTimerStatus('idle');
-      setIsRunning(false);
-    }
-  };
+  const handleCompletionSubmit = useCallback(
+    (entryText?: string) => {
+      console.log('[index.tsx] Handling Completion Submit.');
+      if (entryText && entryText.trim().length > 0 && !testMode) {
+        saveEntry({
+          id: Date.now().toString(),
+          text: entryText.trim(),
+          timestamp: new Date().toISOString(),
+          timeLabel: currentTime,
+        });
+        console.log(
+          '[index.tsx] Entry saved for main session:',
+          entryText.trim()
+        );
+      }
+      if (!testMode) {
+        handleProceedToNextBlock();
+      } else {
+        setTimerStatus('idle');
+        setIsRunning(false);
+      }
+    },
+    [
+      testMode,
+      currentTime,
+      handleProceedToNextBlock,
+      setTimerStatus,
+      setIsRunning,
+      saveEntry,
+    ]
+  );
 
   const animatedCircleStyle = useAnimatedStyle(() => {
     return {
@@ -682,22 +696,6 @@ export default function TimerScreen() {
           </Text>
         )}
       </View>
-
-      <SessionCompletionModal
-        visible={showCompletionModal}
-        onClose={() => {
-          console.log('[index.tsx] SessionCompletionModal onClose (Skipped).');
-          setShowCompletionModal(false);
-          if (!testMode) {
-            handleProceedToNextBlock();
-          } else {
-            setTimerStatus('idle');
-            setIsRunning(false);
-          }
-        }}
-        onSubmit={handleCompletionSubmit}
-        currentTime={currentTime}
-      />
 
       <StopSessionModal
         visible={showStopConfirmation}
