@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { saveEntry } from '@/utils/storage';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '@/components/ThemeProvider';
 
 type EntryModalProps = {
   visible: boolean;
@@ -29,6 +30,7 @@ export function EntryModal({
 }: EntryModalProps) {
   const [entry, setEntry] = useState('');
   const inputRef = useRef<TextInput>(null);
+  const { colors } = useTheme();
 
   useEffect(() => {
     if (visible) {
@@ -79,20 +81,31 @@ export function EntryModal({
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.container}
+          style={[styles.container, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
         >
-          <View style={styles.content}>
+          <View style={[styles.content, { backgroundColor: colors.surface }]}>
             <View style={styles.header}>
-              <Text style={styles.title}>What did you accomplish?</Text>
-              <Text style={styles.subtitle}>Time period: {currentTime}</Text>
+              <Text style={[styles.title, { color: colors.text.primary }]}>
+                What did you accomplish?
+              </Text>
+              <Text style={[styles.subtitle, { color: colors.text.secondary }]}>
+                Time period: {currentTime}
+              </Text>
             </View>
 
             <View style={styles.inputContainer}>
               <TextInput
                 ref={inputRef}
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border.default,
+                    color: colors.text.primary,
+                  },
+                ]}
                 placeholder="I worked on..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.text.tertiary}
                 value={entry}
                 onChangeText={setEntry}
                 multiline
@@ -100,27 +113,52 @@ export function EntryModal({
                 maxLength={300}
                 autoFocus={Platform.OS === 'web'}
               />
-              <Text style={styles.characterCount}>{entry.length}/300</Text>
+              <Text
+                style={[styles.characterCount, { color: colors.text.tertiary }]}
+              >
+                {entry.length}/300
+              </Text>
             </View>
 
             <View style={styles.buttonContainer}>
               <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
+                style={[
+                  styles.button,
+                  styles.cancelButton,
+                  { backgroundColor: colors.border.subtle },
+                ]}
                 onPress={onClose}
               >
-                <Text style={styles.cancelButtonText}>Skip</Text>
+                <Text
+                  style={[
+                    styles.cancelButtonText,
+                    { color: colors.text.secondary },
+                  ]}
+                >
+                  Skip
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.button,
                   styles.submitButton,
-                  entry.trim().length === 0 && styles.disabledButton,
+                  {
+                    backgroundColor: colors.primary.main,
+                    opacity: entry.trim().length === 0 ? 0.5 : 1,
+                  },
                 ]}
                 onPress={handleSubmit}
                 disabled={entry.trim().length === 0}
               >
-                <Text style={styles.submitButtonText}>Save</Text>
+                <Text
+                  style={[
+                    styles.submitButtonText,
+                    { color: colors.primary.contrast },
+                  ]}
+                >
+                  Save
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -134,10 +172,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   content: {
-    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
@@ -157,33 +193,27 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Inter-SemiBold',
     fontSize: 20,
-    color: '#1E293B',
     marginBottom: 4,
   },
   subtitle: {
     fontFamily: 'Inter-Regular',
     fontSize: 16,
-    color: '#64748B',
   },
   inputContainer: {
     marginBottom: 24,
   },
   input: {
-    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
     minHeight: 120,
     textAlignVertical: 'top',
     fontFamily: 'Inter-Regular',
-    color: '#1E293B',
   },
   characterCount: {
     fontFamily: 'Inter-Regular',
     fontSize: 12,
-    color: '#94A3B8',
     textAlign: 'right',
     marginTop: 8,
   },
@@ -199,23 +229,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginHorizontal: 6,
   },
-  cancelButton: {
-    backgroundColor: '#F1F5F9',
-  },
+  cancelButton: {},
   cancelButtonText: {
     fontFamily: 'Inter-Medium',
     fontSize: 16,
-    color: '#64748B',
   },
-  submitButton: {
-    backgroundColor: '#3B82F6',
-  },
+  submitButton: {},
   submitButtonText: {
     fontFamily: 'Inter-Medium',
     fontSize: 16,
-    color: '#FFFFFF',
-  },
-  disabledButton: {
-    backgroundColor: '#93C5FD',
   },
 });

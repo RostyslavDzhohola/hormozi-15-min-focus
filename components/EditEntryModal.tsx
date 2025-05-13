@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useTheme } from '@/components/ThemeProvider';
-import { EntryData } from '@/types/entry'; // Assuming EntryData type is defined here
+import { EntryData } from '@/types/entry';
 
 interface EditEntryModalProps {
   visible: boolean;
@@ -36,7 +36,7 @@ export function EditEntryModal({
     if (entry) {
       setActivityText(entry.text);
     } else {
-      setActivityText(''); // Reset if no entry is provided (e.g., modal closed and reopened)
+      setActivityText('');
     }
   }, [entry]);
 
@@ -47,81 +47,8 @@ export function EditEntryModal({
   };
 
   if (!entry) {
-    return null; // Or some placeholder/loading state if preferred
+    return null;
   }
-
-  const styles = StyleSheet.create({
-    overlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
-      justifyContent: 'flex-end',
-    },
-    container: {
-      backgroundColor: colors.background,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      padding: 24,
-      paddingBottom: Platform.OS === 'ios' ? 40 : 24, // Extra padding for home indicator
-      maxHeight: screenHeight * 0.5, // Limit height
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 20,
-    },
-    title: {
-      fontFamily: 'Inter-SemiBold',
-      fontSize: 20,
-      color: colors.text.primary,
-    },
-    label: {
-      fontFamily: 'Inter-Medium',
-      fontSize: 14,
-      color: colors.text.secondary,
-      marginBottom: 8,
-      marginTop: 16,
-    },
-    timeText: {
-      fontFamily: 'Inter-Regular',
-      fontSize: 16,
-      color: colors.text.primary,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      backgroundColor: colors.surface,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border.default,
-      opacity: 0.7, // To indicate it's not editable
-    },
-    input: {
-      fontFamily: 'Inter-Regular',
-      fontSize: 16,
-      color: colors.text.primary,
-      backgroundColor: colors.surface,
-      padding: 16,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border.default,
-      minHeight: 80,
-      textAlignVertical: 'top',
-    },
-    button: {
-      backgroundColor: colors.primary.main,
-      paddingVertical: 16,
-      borderRadius: 12,
-      alignItems: 'center',
-      marginTop: 24,
-    },
-    buttonText: {
-      fontFamily: 'Inter-SemiBold',
-      fontSize: 16,
-      color: colors.primary.contrast,
-    },
-    closeButton: {
-      padding: 8, // Make it easier to tap
-    },
-  });
 
   return (
     <Modal
@@ -132,22 +59,46 @@ export function EditEntryModal({
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.overlay}
+        style={[styles.overlay, { backgroundColor: 'rgba(0, 0, 0, 0.6)' }]}
       >
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.surface }]}>
           <View style={styles.header}>
-            <Text style={styles.title}>Edit Entry</Text>
+            <Text style={[styles.title, { color: colors.text.primary }]}>
+              Edit Entry
+            </Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <X size={24} color={colors.text.secondary} />
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.label}>Time Slot (Read-only)</Text>
-          <Text style={styles.timeText}>{entry.timeLabel || 'N/A'}</Text>
+          <Text style={[styles.label, { color: colors.text.secondary }]}>
+            Time Slot (Read-only)
+          </Text>
+          <Text
+            style={[
+              styles.timeText,
+              {
+                color: colors.text.primary,
+                backgroundColor: colors.background,
+                borderColor: colors.border.default,
+              },
+            ]}
+          >
+            {entry.timeLabel || 'N/A'}
+          </Text>
 
-          <Text style={styles.label}>Activity Description</Text>
+          <Text style={[styles.label, { color: colors.text.secondary }]}>
+            Activity Description
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                color: colors.text.primary,
+                backgroundColor: colors.background,
+                borderColor: colors.border.default,
+              },
+            ]}
             value={activityText}
             onChangeText={setActivityText}
             placeholder="What did you accomplish?"
@@ -157,14 +108,79 @@ export function EditEntryModal({
           />
 
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, { backgroundColor: colors.primary.main }]}
             onPress={handleSubmit}
             activeOpacity={0.8}
           >
-            <Text style={styles.buttonText}>Save Changes</Text>
+            <Text
+              style={[styles.buttonText, { color: colors.primary.contrast }]}
+            >
+              Save Changes
+            </Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  container: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    maxHeight: screenHeight * 0.5,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  title: {
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 20,
+  },
+  label: {
+    fontFamily: 'Inter-Medium',
+    fontSize: 14,
+    marginBottom: 8,
+    marginTop: 16,
+  },
+  timeText: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    opacity: 0.7,
+  },
+  input: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 16,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  button: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  buttonText: {
+    fontFamily: 'Inter-SemiBold',
+    fontSize: 16,
+  },
+  closeButton: {
+    padding: 8,
+  },
+});

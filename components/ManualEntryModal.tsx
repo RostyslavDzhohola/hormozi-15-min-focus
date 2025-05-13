@@ -19,6 +19,7 @@ import { saveEntry } from '@/utils/storage';
 import { Plus, X, ChevronUp, ChevronDown } from 'lucide-react-native';
 import { EntryData, TimeSlot } from '@/types/entry';
 import { TimeSlotItem } from './TimeSlotItem';
+import { useTheme } from '@/components/ThemeProvider';
 
 const TIME_SLOTS: TimeSlot[] = Array.from({ length: 96 }, (_, i) => {
   const hour = Math.floor(i / 4);
@@ -55,6 +56,7 @@ export function ManualEntryModal({
   const inputRef = useRef<TextInput>(null);
   const scrollY = useSharedValue(0);
   const scrollViewRef = useRef<Animated.ScrollView>(null);
+  const { colors } = useTheme();
 
   useEffect(() => {
     if (!visible) {
@@ -74,7 +76,6 @@ export function ManualEntryModal({
 
     const filteredSlots = TIME_SLOTS.filter((slot) => {
       if (takenSlots.has(slot.value)) return false;
-
       return true;
     });
 
@@ -155,37 +156,55 @@ export function ManualEntryModal({
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.container}
+          style={[styles.container, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
         >
-          <View style={styles.content}>
+          <View style={[styles.content, { backgroundColor: colors.surface }]}>
             <View style={styles.header}>
-              <Text style={styles.title}>Add Manual Entry</Text>
+              <Text style={[styles.title, { color: colors.text.primary }]}>
+                Add Manual Entry
+              </Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X size={24} color="#64748B" />
+                <X size={24} color={colors.text.secondary} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.scrollView}>
-              <Text style={styles.label}>Select Time Slot</Text>
+              <Text style={[styles.label, { color: colors.text.primary }]}>
+                Select Time Slot
+              </Text>
 
               <TouchableOpacity
-                style={styles.timePickerTrigger}
+                style={[
+                  styles.timePickerTrigger,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border.default,
+                  },
+                ]}
                 onPress={() => setShowTimePicker(!showTimePicker)}
               >
-                <Text style={styles.selectedTimeText}>
+                <Text
+                  style={[
+                    styles.selectedTimeText,
+                    { color: colors.text.primary },
+                  ]}
+                >
                   {selectedTime || 'Select a time'}
                 </Text>
                 {showTimePicker ? (
-                  <ChevronUp size={20} color="#64748B" />
+                  <ChevronUp size={20} color={colors.text.secondary} />
                 ) : (
-                  <ChevronDown size={20} color="#64748B" />
+                  <ChevronDown size={20} color={colors.text.secondary} />
                 )}
               </TouchableOpacity>
 
               {showTimePicker && (
                 <Animated.ScrollView
                   ref={scrollViewRef}
-                  style={styles.timePickerContainer}
+                  style={[
+                    styles.timePickerContainer,
+                    { backgroundColor: colors.background },
+                  ]}
                   showsVerticalScrollIndicator={false}
                   onScroll={scrollHandler}
                   scrollEventThrottle={16}
@@ -208,12 +227,21 @@ export function ManualEntryModal({
                 </Animated.ScrollView>
               )}
 
-              <Text style={styles.label}>Activity Description</Text>
+              <Text style={[styles.label, { color: colors.text.primary }]}>
+                Activity Description
+              </Text>
               <TextInput
                 ref={inputRef}
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    color: colors.text.primary,
+                    backgroundColor: colors.background,
+                    borderColor: colors.border.default,
+                  },
+                ]}
                 placeholder="What did you accomplish?"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.text.tertiary}
                 value={entry}
                 onChangeText={(text) => {
                   setEntry(text);
@@ -223,18 +251,32 @@ export function ManualEntryModal({
                 maxLength={300}
               />
 
-              {error && <Text style={styles.errorText}>{error}</Text>}
+              {error && (
+                <Text style={[styles.errorText, { color: colors.error.main }]}>
+                  {error}
+                </Text>
+              )}
 
               <TouchableOpacity
                 style={[
                   styles.submitButton,
-                  (!selectedTime || !entry.trim()) && styles.disabledButton,
+                  {
+                    backgroundColor: colors.primary.main,
+                    opacity: !selectedTime || !entry.trim() ? 0.5 : 1,
+                  },
                 ]}
                 onPress={handleSubmit}
                 disabled={!selectedTime || !entry.trim()}
               >
-                <Plus size={20} color="#fff" />
-                <Text style={styles.submitButtonText}>Add Entry</Text>
+                <Plus size={20} color={colors.primary.contrast} />
+                <Text
+                  style={[
+                    styles.submitButtonText,
+                    { color: colors.primary.contrast },
+                  ]}
+                >
+                  Add Entry
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -247,10 +289,8 @@ export function ManualEntryModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   content: {
-    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',
@@ -267,7 +307,6 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Inter-SemiBold',
     fontSize: 20,
-    color: '#1E293B',
   },
   closeButton: {
     padding: 4,
@@ -279,9 +318,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
@@ -289,54 +326,42 @@ const styles = StyleSheet.create({
   selectedTimeText: {
     fontFamily: 'Inter-Medium',
     fontSize: 16,
-    color: '#1E293B',
   },
   timePickerContainer: {
     maxHeight: 200,
     marginBottom: 24,
     borderRadius: 12,
-    backgroundColor: '#F8FAFC',
   },
   label: {
     fontFamily: 'Inter-Medium',
     fontSize: 16,
-    color: '#1E293B',
     marginBottom: 12,
   },
   input: {
-    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
     minHeight: 120,
     textAlignVertical: 'top',
     fontFamily: 'Inter-Regular',
-    color: '#1E293B',
     marginBottom: 16,
   },
   errorText: {
     fontFamily: 'Inter-Regular',
     fontSize: 14,
-    color: '#EF4444',
     marginBottom: 16,
   },
   submitButton: {
-    backgroundColor: '#3B82F6',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
     borderRadius: 12,
   },
-  disabledButton: {
-    backgroundColor: '#93C5FD',
-  },
   submitButtonText: {
     fontFamily: 'Inter-SemiBold',
     fontSize: 16,
-    color: '#FFFFFF',
     marginLeft: 8,
   },
 });

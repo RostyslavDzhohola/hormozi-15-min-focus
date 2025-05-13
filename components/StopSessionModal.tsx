@@ -8,6 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { TriangleAlert as AlertTriangle } from 'lucide-react-native';
+import { useTheme } from '@/components/ThemeProvider';
 
 type StopSessionModalProps = {
   visible: boolean;
@@ -15,7 +16,13 @@ type StopSessionModalProps = {
   onConfirm: () => void;
 };
 
-export function StopSessionModal({ visible, onClose, onConfirm }: StopSessionModalProps) {
+export function StopSessionModal({
+  visible,
+  onClose,
+  onConfirm,
+}: StopSessionModalProps) {
+  const { colors } = useTheme();
+
   // Add escape key listener for web
   React.useEffect(() => {
     if (Platform.OS === 'web' && visible) {
@@ -38,31 +45,56 @@ export function StopSessionModal({ visible, onClose, onConfirm }: StopSessionMod
       visible={visible}
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
-        <View style={styles.content}>
+      <View
+        style={[styles.container, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
+      >
+        <View style={[styles.content, { backgroundColor: colors.surface }]}>
           <View style={styles.iconContainer}>
-            <AlertTriangle size={32} color="#F59E0B" />
+            <AlertTriangle size={32} color={colors.warning.main} />
           </View>
 
-          <Text style={styles.title}>Stop Session?</Text>
-          
-          <Text style={styles.message}>
-            Are you sure you want to stop the current tracking session? This will end your daily activity tracking.
+          <Text style={[styles.title, { color: colors.text.primary }]}>
+            Stop Session?
+          </Text>
+
+          <Text style={[styles.message, { color: colors.text.secondary }]}>
+            Are you sure you want to stop the current tracking session? This
+            will end your daily activity tracking.
           </Text>
 
           <View style={styles.buttonContainer}>
-            <TouchableOpacity 
-              style={styles.cancelButton}
+            <TouchableOpacity
+              style={[
+                styles.cancelButton,
+                { backgroundColor: colors.border.subtle },
+              ]}
               onPress={onClose}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text
+                style={[
+                  styles.cancelButtonText,
+                  { color: colors.text.secondary },
+                ]}
+              >
+                Cancel
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.confirmButton}
+            <TouchableOpacity
+              style={[
+                styles.confirmButton,
+                {
+                  backgroundColor: colors.error.light,
+                  borderColor: colors.error.border,
+                },
+              ]}
               onPress={onConfirm}
             >
-              <Text style={styles.confirmButtonText}>Stop Session</Text>
+              <Text
+                style={[styles.confirmButtonText, { color: colors.error.main }]}
+              >
+                Stop Session
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -76,11 +108,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     padding: 20,
   },
   content: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 24,
     width: '100%',
@@ -101,14 +131,12 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Inter-SemiBold',
     fontSize: 24,
-    color: '#1E293B',
     textAlign: 'center',
     marginBottom: 12,
   },
   message: {
     fontFamily: 'Inter-Regular',
     fontSize: 16,
-    color: '#64748B',
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 24,
@@ -120,7 +148,6 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -128,20 +155,16 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontFamily: 'Inter-Medium',
     fontSize: 16,
-    color: '#64748B',
   },
   confirmButton: {
     flex: 1,
-    backgroundColor: '#FEF2F2',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FEE2E2',
   },
   confirmButtonText: {
     fontFamily: 'Inter-Medium',
     fontSize: 16,
-    color: '#EF4444',
   },
 });

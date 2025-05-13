@@ -9,10 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { saveEntry } from '@/utils/storage';
+import { useTheme } from '@/components/ThemeProvider';
 
 type SessionCompletionModalProps = {
   visible: boolean;
@@ -21,18 +22,24 @@ type SessionCompletionModalProps = {
   currentTime: string;
 };
 
-export function SessionCompletionModal({ visible, onClose, onSubmit, currentTime }: SessionCompletionModalProps) {
+export function SessionCompletionModal({
+  visible,
+  onClose,
+  onSubmit,
+  currentTime,
+}: SessionCompletionModalProps) {
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
-  
+  const { colors } = useTheme();
+
   useEffect(() => {
     if (visible) {
       // Focus the text input when modal becomes visible
       const focusTimer = setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
-      
+
       // Add escape key listener for web
       if (Platform.OS === 'web') {
         const handleEscape = (e: KeyboardEvent) => {
@@ -51,13 +58,13 @@ export function SessionCompletionModal({ visible, onClose, onSubmit, currentTime
       setError(null);
     }
   }, [visible, onClose]);
-  
+
   const handleSubmit = async () => {
     if (!description.trim()) {
       setError('Please enter a description of your session');
       return;
     }
-    
+
     try {
       // Save the entry
       await saveEntry({
@@ -66,7 +73,7 @@ export function SessionCompletionModal({ visible, onClose, onSubmit, currentTime
         timestamp: new Date().toISOString(),
         timeLabel: currentTime,
       });
-      
+
       // Clear and close
       setDescription('');
       setError(null);
@@ -76,9 +83,9 @@ export function SessionCompletionModal({ visible, onClose, onSubmit, currentTime
       setError('Failed to save entry. Please try again.');
     }
   };
-  
+
   if (!visible) return null;
-  
+
   return (
     <Modal
       animationType="fade"
@@ -89,30 +96,39 @@ export function SessionCompletionModal({ visible, onClose, onSubmit, currentTime
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.container}
+          style={[styles.container, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
         >
-          <View style={styles.content}>
+          <View style={[styles.content, { backgroundColor: colors.surface }]}>
             <View style={styles.header}>
-              <Text style={styles.title}>Session Complete!</Text>
-              <TouchableOpacity 
+              <Text style={[styles.title, { color: colors.text.primary }]}>
+                Session Complete!
+              </Text>
+              <TouchableOpacity
                 onPress={onClose}
                 style={styles.closeButton}
                 hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
               >
-                <X size={24} color="#64748B" />
+                <X size={24} color={colors.text.secondary} />
               </TouchableOpacity>
             </View>
-            
-            <Text style={styles.subtitle}>
+
+            <Text style={[styles.subtitle, { color: colors.text.secondary }]}>
               What did you accomplish during this session?
             </Text>
-            
+
             <View style={styles.inputContainer}>
               <TextInput
                 ref={inputRef}
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border.default,
+                    color: colors.text.primary,
+                  },
+                ]}
                 placeholder="I completed..."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.text.tertiary}
                 value={description}
                 onChangeText={(text) => {
                   setDescription(text);
@@ -122,32 +138,56 @@ export function SessionCompletionModal({ visible, onClose, onSubmit, currentTime
                 maxLength={200}
                 returnKeyType="done"
               />
-              <Text style={styles.characterCount}>
+              <Text
+                style={[styles.characterCount, { color: colors.text.tertiary }]}
+              >
                 {description.length}/200
               </Text>
             </View>
-            
+
             {error && (
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={[styles.errorText, { color: colors.error.main }]}>
+                {error}
+              </Text>
             )}
-            
+
             <View style={styles.buttonContainer}>
-              <TouchableOpacity 
-                style={styles.cancelButton}
+              <TouchableOpacity
+                style={[
+                  styles.cancelButton,
+                  { backgroundColor: colors.border.subtle },
+                ]}
                 onPress={onClose}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text
+                  style={[
+                    styles.cancelButtonText,
+                    { color: colors.text.secondary },
+                  ]}
+                >
+                  Cancel
+                </Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[
                   styles.saveButton,
-                  !description.trim() && styles.disabledButton
+                  {
+                    backgroundColor: colors.primary.main,
+                    opacity: !description.trim() ? 0.5 : 1,
+                  },
                 ]}
                 onPress={handleSubmit}
                 disabled={!description.trim()}
               >
-                <Text style={styles.saveButtonText}>Save Entry</Text>
+                <Text
+                  style={[
+                    styles.saveButtonText,
+                    { color: colors.primary.contrast },
+                  ]}
+                >
+                  Save Entry
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -161,11 +201,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     padding: 20,
   },
   content: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 24,
     shadowColor: '#000',
@@ -186,7 +224,6 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Inter-SemiBold',
     fontSize: 24,
-    color: '#1E293B',
   },
   closeButton: {
     padding: 4,
@@ -194,35 +231,29 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: 'Inter-Regular',
     fontSize: 16,
-    color: '#64748B',
     marginBottom: 20,
   },
   inputContainer: {
     marginBottom: 20,
   },
   input: {
-    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
     minHeight: 120,
     textAlignVertical: 'top',
     fontFamily: 'Inter-Regular',
-    color: '#1E293B',
   },
   characterCount: {
     fontFamily: 'Inter-Regular',
     fontSize: 12,
-    color: '#94A3B8',
     textAlign: 'right',
     marginTop: 8,
   },
   errorText: {
     fontFamily: 'Inter-Regular',
     fontSize: 14,
-    color: '#EF4444',
     marginBottom: 16,
   },
   buttonContainer: {
@@ -232,7 +263,6 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -240,11 +270,9 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontFamily: 'Inter-Medium',
     fontSize: 16,
-    color: '#64748B',
   },
   saveButton: {
     flex: 1,
-    backgroundColor: '#3B82F6',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -252,9 +280,5 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontFamily: 'Inter-Medium',
     fontSize: 16,
-    color: '#FFFFFF',
-  },
-  disabledButton: {
-    backgroundColor: '#93C5FD',
   },
 });

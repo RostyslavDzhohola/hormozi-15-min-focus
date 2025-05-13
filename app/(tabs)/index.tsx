@@ -748,23 +748,6 @@ export default function TimerScreen() {
         ) : null}
       </View>
 
-      <View style={styles.statusContainer}>
-        {isRunning ? (
-          <Text style={[styles.statusText, { color: colors.text.secondary }]}>
-            Session active • Next entry in {Math.floor(remainingSeconds / 60)}:
-            {(remainingSeconds % 60).toString().padStart(2, '0')}
-          </Text>
-        ) : timerStatus === 'completed' ? (
-          <Text style={[styles.statusText, { color: colors.text.secondary }]}>
-            Session complete! Please make your entry.
-          </Text>
-        ) : (
-          <Text style={[styles.statusText, { color: colors.text.secondary }]}>
-            Session inactive • Start to begin tracking
-          </Text>
-        )}
-      </View>
-
       <StopSessionModal
         visible={showStopConfirmation}
         onClose={() => setShowStopConfirmation(false)}

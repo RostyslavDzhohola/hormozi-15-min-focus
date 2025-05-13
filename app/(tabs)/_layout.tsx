@@ -31,13 +31,15 @@ export default function TabLayout() {
   return (
     <MaterialTopTabs
       screenOptions={{
-        tabBarPosition: 'bottom',
         tabBarStyle: {
           ...styles.tabBar,
           position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
+          backgroundColor: isDark
+            ? 'rgba(30, 41, 59, 0.95)'
+            : 'rgba(255, 255, 255, 0.95)',
         },
         tabBarActiveTintColor: colors.primary.main,
         tabBarInactiveTintColor: colors.text.secondary,
@@ -46,25 +48,6 @@ export default function TabLayout() {
         tabBarIndicator: () => null,
         swipeEnabled: true,
         animationEnabled: true,
-        tabBarBackground: () =>
-          Platform.OS === 'ios' ? (
-            <BlurView
-              tint={isDark ? 'dark' : 'light'}
-              intensity={isDark ? 70 : 95}
-              style={StyleSheet.absoluteFill}
-            />
-          ) : (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                {
-                  backgroundColor: isDark
-                    ? 'rgba(30, 41, 59, 0.95)'
-                    : 'rgba(255, 255, 255, 0.95)',
-                },
-              ]}
-            />
-          ),
       }}
     >
       <MaterialTopTabs.Screen
