@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Switch,
   TouchableOpacity,
   Alert,
   Platform,
@@ -14,9 +13,11 @@ import { useTheme } from '@/components/ThemeProvider';
 import { useSettings } from '@/hooks/useSettings';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ScrollView } from 'react-native-gesture-handler';
+import { LinearGradient, LinearGradientPoint } from 'expo-linear-gradient';
 
 export default function SettingsScreen() {
-  const { colors, theme } = useTheme();
+  const { colors } = useTheme();
+
   const { settings, resetAllData } = useSettings();
 
   const handleResetAllData = () => {
@@ -41,23 +42,28 @@ export default function SettingsScreen() {
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
+      <LinearGradient
+        colors={colors.gradient.secondary as any}
+        style={StyleSheet.absoluteFillObject}
+        start={{ x: 0, y: 0 } as LinearGradientPoint}
+        end={{ x: 1, y: 1 } as LinearGradientPoint}
+      />
       <View style={[styles.headerContainer]}>
         <Text style={[styles.title, { color: colors.text.primary }]}>
           Settings
         </Text>
       </View>
 
-      <ScrollView
-        style={[styles.content, { backgroundColor: colors.background }]}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={[styles.content]} showsVerticalScrollIndicator={false}>
         <Text style={[styles.sectionTitle, { color: colors.text.secondary }]}>
           Preferences
         </Text>
 
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          <View style={styles.settingItem}>
-            <View style={[styles.settingInfo]}>
+          <View
+            style={[styles.settingItem, { borderColor: colors.border.subtle }]}
+          >
+            <View style={styles.settingInfo}>
               <Moon size={20} color={colors.primary.main} />
               <Text
                 style={[styles.settingText, { color: colors.text.primary }]}

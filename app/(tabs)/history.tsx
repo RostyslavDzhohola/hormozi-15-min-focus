@@ -32,8 +32,7 @@ export default function HistoryScreen() {
 
   const { entries, deleteEntry, refreshEntries, updateEntryText } =
     useEntries(selectedDate);
-  const { colors, theme } = useTheme();
-  const isDark = theme === 'dark';
+  const { colors } = useTheme();
 
   useFocusEffect(
     useCallback(() => {
@@ -111,37 +110,27 @@ export default function HistoryScreen() {
               style={[
                 styles.iconButton,
                 {
-                  backgroundColor: isDark
-                    ? colors.surface
-                    : colors.primary.light,
+                  backgroundColor: colors.surface,
                   borderColor: colors.border.default,
                 },
               ]}
               onPress={() => setShowManualEntryModal(true)}
               activeOpacity={0.8}
             >
-              <Plus
-                size={20}
-                color={isDark ? colors.primary.light : colors.primary.main}
-              />
+              <Plus size={20} color={colors.primary.main} />
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.iconButton,
                 {
-                  backgroundColor: isDark
-                    ? colors.surface
-                    : colors.primary.light,
+                  backgroundColor: colors.surface,
                   borderColor: colors.border.default,
                 },
               ]}
               onPress={handleExport}
               activeOpacity={0.8}
             >
-              <FileDown
-                size={20}
-                color={isDark ? colors.primary.light : colors.primary.main}
-              />
+              <FileDown size={20} color={colors.primary.main} />
             </TouchableOpacity>
           </View>
         </View>
@@ -157,15 +146,12 @@ export default function HistoryScreen() {
           styles.todaySummary,
           {
             backgroundColor: colors.surface,
-            shadowColor: isDark ? 'rgba(0, 0, 0, 0.3)' : colors.text.primary,
+            shadowColor: colors.text.primary,
           },
         ]}
       >
         <View style={styles.dateContainer}>
-          <Calendar
-            size={18}
-            color={isDark ? colors.text.tertiary : colors.text.secondary}
-          />
+          <Calendar size={18} color={colors.text.secondary} />
           <Text style={[styles.dateText, { color: colors.text.primary }]}>
             {selectedDate.toLocaleDateString('en-US', {
               weekday: 'long',

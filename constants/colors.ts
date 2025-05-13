@@ -36,7 +36,7 @@ export const lightColors = {
 };
 
 export const darkColors = {
-  background: '#1E293B',
+  background: '#131C2E',
   surface: '#0F172A',
   text: {
     primary: '#F8FAFC',
