@@ -248,6 +248,7 @@ export default function TimerScreen() {
   }, [remainingSeconds, isRunning, testMode, progress]);
 
   useEffect(() => {
+    // Check and request permissions on mount
     requestNotificationPermissions();
   }, []);
 
@@ -347,8 +348,39 @@ export default function TimerScreen() {
   ]);
 
   const requestNotificationPermissions = async () => {
-    const { status } = await Notifications.requestPermissionsAsync();
+    const { status } = await Notifications.requestPermissionsAsync({
+      ios: {
+        allowAlert: true,
+        allowBadge: true,
+        allowSound: true,
+      },
+    });
     setNotificationPermission(status === 'granted');
+    if (status !== 'granted') {
+      console.warn('[index.tsx] Notification permissions not granted.');
+      // Optionally show a message if permission is denied but don't block functionality
+    }
+  };
+
+  // Define a consistent channel ID
+  const CRITICAL_CHANNEL_ID = 'sessionCompleteCritical';
+
+  // Function to configure the notification channel on Android
+  const ensureCriticalNotificationChannel = async () => {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync(CRITICAL_CHANNEL_ID, {
+        name: 'Critical Session Alerts',
+        importance: Notifications.AndroidImportance.MAX, // Highest importance
+        bypassDnd: true, // Attempt to bypass Do Not Disturb
+        sound: 'default', // Use default sound
+        lockscreenVisibility:
+          Notifications.AndroidNotificationVisibility.PUBLIC, // Show on lockscreen
+        vibrationPattern: [0, 250, 250, 250], // Standard vibration
+      });
+      console.log(
+        '[index.tsx] Ensured critical notification channel exists on Android.'
+      );
+    }
   };
 
   const scheduleDelayedNotificationForTestMode = async (seconds: number) => {
@@ -371,17 +403,25 @@ export default function TimerScreen() {
         );
         return;
       }
+
+      // Ensure the channel is configured before scheduling (Android)
+      await ensureCriticalNotificationChannel();
+      await Notifications.cancelAllScheduledNotificationsAsync(); // Cancel previous test notifications
+
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'Test Mode Complete (OS Timer)!',
-          body: 'Your test session has finished.',
+          title: 'Test Mode Complete!', // Simplified title
+          body: 'Your 5-second test session has finished.',
           data: { type: 'testModeCompleteOSTrigger' },
-          sound: 'default',
+          sound: 'default', // Use default sound
+          priority: Notifications.AndroidNotificationPriority.MAX, // Max priority for Android
+          // @ts-expect-error interruptionLevel is an iOS-specific property
+          interruptionLevel: 'timeSensitive', // Changed from 'critical'
         },
-        trigger: { seconds: seconds },
+        trigger: { seconds: seconds, channelId: CRITICAL_CHANNEL_ID }, // Use the critical channel
       });
       console.log(
-        `[index.tsx] scheduleDelayedNotificationForTestMode: Notification scheduled with ${seconds}s delay via OS.`
+        `[index.tsx] scheduleDelayedNotificationForTestMode: Critical notification scheduled with ${seconds}s delay via OS.`
       );
     } catch (error) {
       console.error(
@@ -417,6 +457,8 @@ export default function TimerScreen() {
         return;
       }
 
+      // Ensure the channel is configured before scheduling (Android)
+      await ensureCriticalNotificationChannel();
       await Notifications.cancelAllScheduledNotificationsAsync();
       console.log(
         '[index.tsx] scheduleNextBlockReminder: Cancelled all previously scheduled notifications.'
@@ -456,12 +498,15 @@ export default function TimerScreen() {
             { hour: 'numeric', minute: '2-digit' }
           )}.`,
           data: { type: 'mainSessionCompleteOSTrigger' },
-          sound: 'default',
+          sound: 'default', // Use default sound
+          priority: Notifications.AndroidNotificationPriority.MAX, // Max priority for Android
+          // @ts-expect-error interruptionLevel is an iOS-specific property
+          interruptionLevel: 'timeSensitive', // Changed from 'critical'
         },
-        trigger: { date: notificationDate },
+        trigger: { date: notificationDate, channelId: CRITICAL_CHANNEL_ID }, // Use the critical channel
       });
       console.log(
-        `[index.tsx] scheduleNextBlockReminder: Successfully scheduled reminder for: ${notificationDate.toLocaleString()}`
+        `[index.tsx] scheduleNextBlockReminder: Successfully scheduled critical reminder for: ${notificationDate.toLocaleString()}`
       );
     } catch (error) {
       console.error(
@@ -594,6 +639,29 @@ export default function TimerScreen() {
         <Text style={[styles.subtitle, { color: colors.text.secondary }]}>
           Track your productivity in 15-minute intervals
         </Text>
+        {/* Conditionally render permission warning */}
+        {!notificationPermission && Platform.OS !== 'web' && (
+          <View
+            style={[
+              styles.permissionDeniedContainer,
+              {
+                backgroundColor: colors.warning.light,
+                borderColor: colors.warning.border,
+              },
+            ]}
+          >
+            <MessageSquareWarning size={24} color={colors.warning.main} />
+            <Text
+              style={[
+                styles.permissionDeniedText,
+                { color: colors.warning.main },
+              ]}
+            >
+              Notifications are disabled. You might miss session completion
+              alerts. Please enable them in system settings.
+            </Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.timerContainer}>

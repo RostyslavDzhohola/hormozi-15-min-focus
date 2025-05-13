@@ -22,6 +22,13 @@ export const lightColors = {
     border: '#FEE2E2',
     contrast: '#FFFFFF',
   },
+  warning: {
+    main: '#F59E0B',
+    light: '#FFFBEB',
+    dark: '#B45309',
+    contrast: '#111827',
+    border: '#FEF3C7',
+  },
   gradient: {
     primary: ['#E0F2FE', '#F9FAFB'],
     secondary: ['#EFF6FF', '#F9FAFB'],
@@ -51,6 +58,13 @@ export const darkColors = {
     light: '#450A0A',
     border: '#7F1D1D',
     contrast: '#FFFFFF',
+  },
+  warning: {
+    main: '#FBBF24',
+    light: '#450A0A',
+    dark: '#FDE68A',
+    contrast: '#111827',
+    border: '#7F1D1D',
   },
   gradient: {
     primary: ['#1E293B', '#0F172A'],
