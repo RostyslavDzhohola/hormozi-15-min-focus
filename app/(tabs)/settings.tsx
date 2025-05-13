@@ -111,7 +111,7 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.versionText, { color: colors.text.tertiary }]}>
-          Version 1.0.0
+          Version {require('../../package.json').version}
         </Text>
       </ScrollView>
     </SafeAreaView>
