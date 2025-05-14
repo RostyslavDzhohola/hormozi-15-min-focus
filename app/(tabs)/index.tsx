@@ -32,6 +32,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -267,8 +269,6 @@ export default function TimerScreen() {
           data: { type: 'testModeCompleteOSTrigger' },
           sound: 'default', // Use default sound
           priority: Notifications.AndroidNotificationPriority.MAX, // Max priority for Android
-          // @ts-expect-error interruptionLevel is an iOS-specific property
-          interruptionLevel: 'timeSensitive', // Changed from 'critical'
         },
         trigger: { seconds: seconds, channelId: CRITICAL_CHANNEL_ID }, // Use the critical channel
       });
@@ -341,25 +341,6 @@ export default function TimerScreen() {
         );
         notificationDate.setMinutes(notificationDate.getMinutes() + 15);
       }
-
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Focus Session Reminder',
-          body: `Your next 15-min block ends at ${notificationDate.toLocaleTimeString(
-            [],
-            { hour: 'numeric', minute: '2-digit' }
-          )}.`,
-          data: { type: 'mainSessionCompleteOSTrigger' },
-          sound: 'default', // Use default sound
-          priority: Notifications.AndroidNotificationPriority.MAX, // Max priority for Android
-          // @ts-expect-error interruptionLevel is an iOS-specific property
-          interruptionLevel: 'timeSensitive', // Changed from 'critical'
-        },
-        trigger: { date: notificationDate, channelId: CRITICAL_CHANNEL_ID }, // Use the critical channel
-      });
-      console.log(
-        `[index.tsx] scheduleNextBlockReminder: Successfully scheduled critical reminder for: ${notificationDate.toLocaleString()}`
-      );
     } catch (error) {
       console.error(
         '[index.tsx] scheduleNextBlockReminder: Error scheduling reminder:',
