@@ -35,7 +35,7 @@ export const useTimer = () => {
       const newCurrentTime = `${hour12}:${formattedMinutes} ${ampm}`;
       setCurrentTime(newCurrentTime);
       console.log(
-        `[useTimer] currentTime set to: ${newCurrentTime} (based on date ${dateToRound.toLocaleTimeString()})`
+        `[hooks/useTimer] currentTime set to: ${newCurrentTime} (based on date ${dateToRound.toLocaleTimeString()})`
       );
     },
     [setCurrentTime]
@@ -63,14 +63,14 @@ export const useTimer = () => {
     } else if (secondsLeft <= 0 || secondsLeft > 15 * 60) {
       // Fallback for any unexpected calculation, ensures timer is for a full 15-min block.
       console.warn(
-        `[useTimer] resetTimerToNextInterval: Unusual secondsLeft (${secondsLeft}), resetting to 15 minutes.`
+        `[hooks/useTimer] resetTimerToNextInterval: Unusual secondsLeft (${secondsLeft}), resetting to 15 minutes.`
       );
       secondsLeft = 15 * 60;
     }
 
     setRemainingSeconds(secondsLeft);
     console.log(
-      `[useTimer] Timer reset. Targeting end of current 15-min block. Remaining: ${secondsLeft} seconds.`
+      `[hooks/useTimer] Timer reset. Targeting end of current 15-min block. Remaining: ${secondsLeft} seconds.`
     );
     return secondsLeft;
   }, [calculateAndSetRoundedTime, setRemainingSeconds]);
@@ -85,7 +85,7 @@ export const useTimer = () => {
         if (savedSession.isActive && savedSession.startTime) {
           lastUpdateRef.current = new Date(savedSession.startTime).getTime();
           setTestMode(false);
-          console.log('[useTimer] Loaded active session from storage.');
+          console.log('[hooks/useTimer] Loaded active session from storage.');
         }
       }
     };
@@ -119,13 +119,13 @@ export const useTimer = () => {
       const now = Date.now();
       if (sessionRef.current.isActive) {
         if (nextAppState === 'active') {
-          console.log('[useTimer] App became active. Session is active.');
+          console.log('[hooks/useTimer] App became active. Session is active.');
           const elapsedMs = now - lastUpdateRef.current;
           const elapsedSeconds = Math.floor(elapsedMs / 1000);
 
           if (timerStatus === 'completed' || timerStatus === 'idle') {
             console.log(
-              `[useTimer] App active, but timerStatus is ${timerStatus}. No automatic second adjustment for active timer.`
+              `[hooks/useTimer] App active, but timerStatus is ${timerStatus}. No automatic second adjustment for active timer.`
             );
           } else if (testMode) {
             setRemainingSeconds((prev) => Math.max(0, prev - elapsedSeconds));
@@ -134,7 +134,7 @@ export const useTimer = () => {
             if (newRemaining <= 0) {
               setRemainingSeconds(0);
               console.log(
-                '[useTimer] Main session block likely completed while app was backgrounded.'
+                '[hooks/useTimer] Main session block likely completed while app was backgrounded.'
               );
             } else {
               setRemainingSeconds(newRemaining);
@@ -142,12 +142,16 @@ export const useTimer = () => {
           }
           lastUpdateRef.current = now;
         } else if (nextAppState.match(/inactive|background/)) {
-          console.log('[useTimer] App going to background. Session is active.');
+          console.log(
+            '[hooks/useTimer] App going to background. Session is active.'
+          );
           lastUpdateRef.current = now;
         }
       } else {
         if (nextAppState === 'active') {
-          console.log('[useTimer] App became active. Session NOT active.');
+          console.log(
+            '[hooks/useTimer] App became active. Session NOT active.'
+          );
           lastUpdateRef.current = now;
         }
       }
@@ -162,7 +166,7 @@ export const useTimer = () => {
     if (remainingSeconds > 0 || isRunning === false) return false;
 
     console.log(
-      '[useTimer] checkTimeAndTriggerCompletion: Time is up! Setting to completed and stopping timer.'
+      '[hooks/useTimer] checkTimeAndTriggerCompletion: Time is up! Setting to completed and stopping timer.'
     );
     setTimerStatus('completed');
     setIsRunning(false);
@@ -171,7 +175,7 @@ export const useTimer = () => {
 
   const startSession = useCallback(
     (isTest: boolean = false) => {
-      console.log(`[useTimer] Starting session (isTest: ${isTest})`);
+      console.log(`[hooks/useTimer] Starting session (isTest: ${isTest})`);
       setTestMode(isTest);
       setIsRunning(true);
       setTimerStatus('running');
@@ -204,7 +208,7 @@ export const useTimer = () => {
   );
 
   const stopSession = useCallback(async () => {
-    console.log('[useTimer] Stopping session.');
+    console.log('[hooks/useTimer] Stopping session.');
     setIsRunning(false);
     setTimerStatus('idle');
     setRemainingSeconds(0);
@@ -222,9 +226,9 @@ export const useTimer = () => {
 
     try {
       await saveSessionState(sessionRef.current);
-      console.log('[useTimer] Session state saved after stopping.');
+      console.log('[hooks/useTimer] Session state saved after stopping.');
     } catch (error) {
-      console.warn('[useTimer] Error stopping session:', error);
+      console.warn('[hooks/useTimer] Error stopping session:', error);
     }
   }, []);
 

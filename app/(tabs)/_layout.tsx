@@ -1,6 +1,5 @@
-import { View, StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { Clock, ChartBar as BarChart2, Settings } from 'lucide-react-native';
-import { BlurView } from 'expo-blur';
 import { useTheme } from '@/components/ThemeProvider';
 import { useEffect, useState } from 'react';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';

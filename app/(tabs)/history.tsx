@@ -37,7 +37,7 @@ export default function HistoryScreen() {
   useFocusEffect(
     useCallback(() => {
       console.log(
-        '[HistoryScreen] Screen focused. Refreshing entries for date:',
+        '[app/(tabs)/history.tsx] Screen focused. Refreshing entries for date:',
         selectedDate.toISOString().split('T')[0]
       );
       refreshEntries();

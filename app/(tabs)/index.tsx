@@ -46,17 +46,14 @@ useEffect(() => {
 
 // Configure notifications
 Notifications.setNotificationHandler({
-  handleNotification: async () => {
-    // Only show alert if app is not active (background or inactive)
-    const isAppActive = appState.current === 'active';
-    return {
-      shouldShowAlert: !isAppActive,
-      shouldPlaySound: !isAppActive,
-      shouldSetBadge: true,
-      shouldShowBanner: !isAppActive,
-      shouldShowList: !isAppActive,
-    };
-  },
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    priority: Notifications.AndroidNotificationPriority.MAX,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
 });
 
 export default function TimerScreen() {
@@ -363,7 +360,7 @@ export default function TimerScreen() {
 
       if (notificationDate.getTime() <= Date.now()) {
         console.log(
-          `[index.tsx] scheduleNextBlockReminder: Calculated notification time is in the past (${notificationDate.toLocaleString()}), adjusting.`
+          `[app/(tabs)/index.tsx] scheduleNextBlockReminder: Calculated notification time is in the past (${notificationDate.toLocaleString()}), adjusting.`
         );
         notificationDate.setMinutes(notificationDate.getMinutes() + 15);
       }
@@ -383,11 +380,11 @@ export default function TimerScreen() {
         },
       });
       console.log(
-        `[index.tsx] scheduleNextBlockReminder: Notification scheduled at ${notificationDate.toLocaleString()}.`
+        `[app/(tabs)/index.tsx] scheduleNextBlockReminder: Notification scheduled at ${notificationDate.toLocaleString()}.`
       );
     } catch (error) {
       console.error(
-        '[index.tsx] scheduleNextBlockReminder: Error scheduling reminder:',
+        '[app/(tabs)/index.tsx] scheduleNextBlockReminder: Error scheduling reminder:',
         error
       );
       alert('Failed to schedule session reminder.');
@@ -395,20 +392,20 @@ export default function TimerScreen() {
   };
 
   const handleStartSession = () => {
-    console.log('[index.tsx] Handling Start Session (main).');
+    console.log('[app/(tabs)/index.tsx] Handling Start Session (main).');
     startSession(false);
     scheduleNextBlockReminder();
   };
 
   const handleTestSession = () => {
-    console.log('[index.tsx] Handling Start Session (test).');
+    console.log('[app/(tabs)/index.tsx] Handling Start Session (test).');
     const initialTestSeconds = startSession(true);
     if (typeof initialTestSeconds === 'number') {
       scheduleDelayedNotificationForTestMode(initialTestSeconds);
     } else {
       scheduleDelayedNotificationForTestMode(5);
       console.warn(
-        '[index.tsx] handleTestSession: initialTestSeconds from useTimer was not a number, defaulting to 5s for notification.'
+        '[app/(tabs)/index.tsx] handleTestSession: initialTestSeconds from useTimer was not a number, defaulting to 5s for notification.'
       );
     }
   };
@@ -418,16 +415,16 @@ export default function TimerScreen() {
   };
 
   const handleStopConfirmed = async () => {
-    console.log('[index.tsx] Handling Stop Confirmed.');
+    console.log('[app/(tabs)/index.tsx] Handling Stop Confirmed.');
     stopSession();
     try {
       await Notifications.cancelAllScheduledNotificationsAsync();
       console.log(
-        '[index.tsx] handleStopConfirmed: All scheduled notifications cancelled.'
+        '[app/(tabs)/index.tsx] handleStopConfirmed: All scheduled notifications cancelled.'
       );
     } catch (error) {
       console.error(
-        '[index.tsx] handleStopConfirmed: Error cancelling notifications:',
+        '[app/(tabs)/index.tsx] handleStopConfirmed: Error cancelling notifications:',
         error
       );
     }
@@ -436,7 +433,7 @@ export default function TimerScreen() {
 
   const handleCompletionSubmit = useCallback(
     (entryText?: string) => {
-      console.log('[index.tsx] Handling Completion Submit.');
+      console.log('[app/(tabs)/index.tsx] Handling Completion Submit.');
       if (entryText && entryText.trim().length > 0 && !testMode) {
         saveEntry({
           id: Date.now().toString(),
@@ -445,7 +442,7 @@ export default function TimerScreen() {
           timeLabel: currentTime,
         });
         console.log(
-          '[index.tsx] Entry saved for main session:',
+          '[app/(tabs)/index.tsx] Entry saved for main session:',
           entryText.trim()
         );
       }
@@ -477,6 +474,53 @@ export default function TimerScreen() {
     colors.gradient.primary.length >= 2
       ? (colors.gradient.primary as [string, string, ...string[]])
       : (['transparent', 'transparent'] as [string, string, ...string[]]);
+
+  useEffect(() => {
+    // Listener for when a notification is received while the app is running
+    const notificationReceivedSubscription =
+      Notifications.addNotificationReceivedListener(async (notification) => {
+        console.log(
+          '[app/(tabs)/index.tsx] Notification received while app running:',
+          notification.request.content.data?.type
+        );
+        // Check if the app is currently active/foreground
+        if (appState.current === 'active') {
+          const notificationType = notification.request.content.data?.type;
+          if (
+            notificationType === 'testModeCompleteOSTrigger' ||
+            notificationType === 'mainSessionCompleteOSTrigger'
+          ) {
+            console.log(
+              `[app/(tabs)/index.tsx] App is active. Scheduling dismissal for notification ${notification.request.identifier} of type ${notificationType} from notification center after banner.`
+            );
+            // Delay slightly to ensure banner has time to show, then dismiss.
+            // This makes the notification "non-persistent" in the tray when the app is open.
+            setTimeout(async () => {
+              try {
+                await Notifications.dismissNotificationAsync(
+                  notification.request.identifier
+                );
+                console.log(
+                  `[app/(tabs)/index.tsx] Successfully dismissed notification: ${notification.request.identifier}`
+                );
+              } catch (error) {
+                console.error(
+                  `[app/(tabs)/index.tsx] Error dismissing notification ${notification.request.identifier}:`,
+                  error
+                );
+              }
+            }, 4500); // Adjusted delay to 4.5 seconds
+          }
+        }
+      });
+
+    return () => {
+      console.log(
+        '[app/(tabs)/index.tsx] Cleaning up notification received listener.'
+      );
+      notificationReceivedSubscription.remove();
+    };
+  }, []); // appState.current is a ref, so it doesn't need to be in deps.
 
   return (
     <SafeAreaView
