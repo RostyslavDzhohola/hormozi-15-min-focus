@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Platform,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -26,15 +28,35 @@ import { useTheme } from '@/components/ThemeProvider';
 import { BugPlay, MessageSquareWarning } from 'lucide-react-native';
 import { saveEntry } from '@/utils/storage';
 
+// Track app state to suppress notifications in foreground
+const appState = useRef<AppStateStatus>(AppState.currentState);
+
+useEffect(() => {
+  const handleAppStateChange = (nextAppState: AppStateStatus) => {
+    appState.current = nextAppState;
+  };
+  const subscription = AppState.addEventListener(
+    'change',
+    handleAppStateChange
+  );
+  return () => {
+    subscription.remove();
+  };
+}, []);
+
 // Configure notifications
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async () => {
+    // Only show alert if app is not active (background or inactive)
+    const isAppActive = appState.current === 'active';
+    return {
+      shouldShowAlert: !isAppActive,
+      shouldPlaySound: !isAppActive,
+      shouldSetBadge: true,
+      shouldShowBanner: !isAppActive,
+      shouldShowList: !isAppActive,
+    };
+  },
 });
 
 export default function TimerScreen() {
@@ -264,13 +286,17 @@ export default function TimerScreen() {
 
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'Test Mode Complete!', // Simplified title
+          title: 'Test Mode Complete!',
           body: 'Your 5-second test session has finished.',
           data: { type: 'testModeCompleteOSTrigger' },
-          sound: 'default', // Use default sound
-          priority: Notifications.AndroidNotificationPriority.MAX, // Max priority for Android
+          sound: 'default',
+          priority: Notifications.AndroidNotificationPriority.MAX,
         },
-        trigger: { seconds: seconds, channelId: CRITICAL_CHANNEL_ID }, // Use the critical channel
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: seconds,
+          repeats: false,
+        },
       });
       console.log(
         `[index.tsx] scheduleDelayedNotificationForTestMode: Critical notification scheduled with ${seconds}s delay via OS.`
@@ -341,6 +367,24 @@ export default function TimerScreen() {
         );
         notificationDate.setMinutes(notificationDate.getMinutes() + 15);
       }
+
+      // Schedule main session completion notification
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Session Complete!',
+          body: 'Your 15-minute session has finished.',
+          data: { type: 'mainSessionCompleteOSTrigger' },
+          sound: 'default',
+          priority: Notifications.AndroidNotificationPriority.MAX,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: notificationDate,
+        },
+      });
+      console.log(
+        `[index.tsx] scheduleNextBlockReminder: Notification scheduled at ${notificationDate.toLocaleString()}.`
+      );
     } catch (error) {
       console.error(
         '[index.tsx] scheduleNextBlockReminder: Error scheduling reminder:',
