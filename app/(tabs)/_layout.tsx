@@ -1,7 +1,6 @@
 import { StyleSheet, Platform } from 'react-native';
 import { Clock, ChartBar as BarChart2, Settings } from 'lucide-react-native';
 import { useTheme } from '@/components/ThemeProvider';
-import { useEffect, useState } from 'react';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { withLayoutContext } from 'expo-router';
 
@@ -18,14 +17,6 @@ interface TabIconProps {
 export default function TabLayout() {
   const { theme, colors } = useTheme();
   const isDark = theme === 'dark';
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
-
-  if (!mounted) return null;
 
   return (
     <MaterialTopTabs
@@ -58,7 +49,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <MaterialTopTabs.Screen
+      {/* <MaterialTopTabs.Screen
         name="history"
         options={{
           title: 'History',
@@ -75,7 +66,7 @@ export default function TabLayout() {
             <Settings size={size || 24} color={color} />
           ),
         }}
-      />
+      /> */}
     </MaterialTopTabs>
   );
 }

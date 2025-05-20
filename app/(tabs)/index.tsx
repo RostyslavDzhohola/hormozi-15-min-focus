@@ -29,20 +29,7 @@ import { BugPlay, MessageSquareWarning } from 'lucide-react-native';
 import { saveEntry } from '@/utils/storage';
 
 // Track app state to suppress notifications in foreground
-const appState = useRef<AppStateStatus>(AppState.currentState);
-
-useEffect(() => {
-  const handleAppStateChange = (nextAppState: AppStateStatus) => {
-    appState.current = nextAppState;
-  };
-  const subscription = AppState.addEventListener(
-    'change',
-    handleAppStateChange
-  );
-  return () => {
-    subscription.remove();
-  };
-}, []);
+// const appState = useRef<AppStateStatus>(AppState.currentState); // Will be moved into component
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -57,6 +44,21 @@ Notifications.setNotificationHandler({
 });
 
 export default function TimerScreen() {
+  // Moved AppState listener logic inside the component
+  const appState = useRef<AppStateStatus>(AppState.currentState);
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      appState.current = nextAppState;
+    };
+    const subscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange
+    );
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   const [showStopConfirmation, setShowStopConfirmation] = useState(false);
   const [showTestModeButton, setShowTestModeButton] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState(false);

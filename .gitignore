@@ -42,3 +42,5 @@ android/
 .expo
 dist/
 web-build/
+ios/Podfile.lock
+ios/Podfile.properties.json
