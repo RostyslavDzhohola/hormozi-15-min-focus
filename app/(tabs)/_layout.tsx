@@ -49,7 +49,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* <MaterialTopTabs.Screen
+      <MaterialTopTabs.Screen
         name="history"
         options={{
           title: 'History',
@@ -66,7 +66,7 @@ export default function TabLayout() {
             <Settings size={size || 24} color={color} />
           ),
         }}
-      /> */}
+      />
     </MaterialTopTabs>
   );
 }
